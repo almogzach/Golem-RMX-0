@@ -45,6 +45,7 @@
 #define MENU_CV_SRC			26
 #define MENU_CV_SAVE		27
 #define MENU_AUDIO_OUT_FX	28
+#define MENU_FXB			29	// MODIFIED: FX bus B types
 
 //-----------------------------------------------------------------
 // Shared texts. Reduce mem usage by pooling common text
@@ -174,6 +175,16 @@ const char fxNames[][4] =
 	{"cmp"},
 	{"del"},
 	//{"rev"}
+};
+//-----------------------------------------------------------------
+// MODIFIED: FX bus B types (no delay: the delay memory belongs to bus A)
+const char fxbNames[][4] =
+{
+	{4},		//number of entries
+	{"off"},
+	{"drv"},
+	{"rng"},
+	{"cmp"},
 };
 //-----------------------------------------------------------------
 const char distNames[][4] =
@@ -361,7 +372,7 @@ const char outputNamesFx[][7]  =
 //-----------------------------------------------------------------
 const char outputNames[][7]  =
 {
-	{7},		//number of entries
+	{8},		//number of entries
 	{"St1"}	,	//Stereo Out DAC 1
 	{"St2"}	,	//Stereo Out DAC 2
 	{"L1"}	,	//Mono Out Left DAC 1
@@ -369,6 +380,7 @@ const char outputNames[][7]  =
 	{"L2"}	,	//Mono Out Left DAC 2
 	{"R2"}	,	//Mono Out Right DAC 2
 	{"FX"}	,	//to FX Bus
+	{"FXB"}	,	//MODIFIED: to FX Bus B
 };
 //-----------------------------------------------------------------
 const char filterTypes[][8]  =
@@ -523,6 +535,7 @@ const char shortNames[][4]  =
 	{"v/o"},
 	{"cv"},
 	{"mtg"},
+	{"chk"},	// MODIFIED: voice 7 choke
 
 };
 //-----------------------------------------------------------------
@@ -560,6 +573,7 @@ const char catNames[][16] =
 	{"Clock"},
 	{"Fx"},
 	{"Mod"},
+	{"Fx B"},	// MODIFIED: FX bus B
 };
 //-----------------------------------------------------------------
 // these must correspond to longNamesEnum
@@ -658,6 +672,7 @@ const char longNames[][16] =
 	{"1V/Oct"},
 	{"CV Save"},
 	{"MrphTrgt"},
+	{"Choke"},	// MODIFIED: voice 7 choke
 };
 
 

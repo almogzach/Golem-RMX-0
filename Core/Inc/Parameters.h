@@ -395,6 +395,50 @@ enum ParamEnums
 	PAR_CV_SRC_17,
 	PAR_CV_SRC_18,
 
+	// MODIFIED: second FX bus (FX B). Appended after the mod matrix so older kit
+	// files still load (missing bytes are zero = bus B off). These are above 255,
+	// so the menu sends them as CC3 and they are applied in FxBus2_setFromParam().
+	PAR_FX2_TYPE, //301
+	PAR_FX2_ROUTING,
+	PAR_FX2_DRY_WET,
+	PAR_FX2_RATIO,
+	PAR_FX2_P1,
+	PAR_FX2_P2,
+	PAR_FX2_P3,
+	PAR_FX2_P4, //308
+
+	// MODIFIED: separate open hi-hat voice (voice 7), applied in midiParser_hihat7SetParam().
+	// PAR_HH7_VALID is 0 in kits saved before this firmware: on load, voice 7 is then
+	// initialised from voice 6 (with the old open decay and choke on) so old kits sound the same.
+	PAR_HH7_VALID, //309
+	PAR_HH7_COARSE,
+	PAR_HH7_FINE,
+	PAR_HH7_WAVE1,
+	PAR_HH7_PWM,
+	PAR_HH7_ATTACK,
+	PAR_HH7_DECAY,
+	PAR_HH7_SLOPE,
+	PAR_HH7_VOLUME_MOD,
+	PAR_HH7_MOD_OSC_F1,
+	PAR_HH7_MOD_OSC_F2,
+	PAR_HH7_MOD_OSC_GAIN1,
+	PAR_HH7_MOD_OSC_GAIN2,
+	PAR_HH7_WAVE2,
+	PAR_HH7_WAVE3,
+	PAR_HH7_TRANS_WAVE,
+	PAR_HH7_TRANS_VOL,
+	PAR_HH7_TRANS_FREQ,
+	PAR_HH7_FILTER_FREQ,
+	PAR_HH7_RESO,
+	PAR_HH7_FILTER_TYPE,
+	PAR_HH7_FILTER_DRIVE,
+	PAR_HH7_VOL,
+	PAR_HH7_PAN,
+	PAR_HH7_DECIMATION,
+	PAR_HH7_DISTORTION,
+	PAR_HH7_AUDIO_OUT,
+	PAR_HH7_CHOKE, //336
+
 
 	//#########################################
 	//######## End of sound Parameters ########

@@ -29,6 +29,7 @@
 
 #include "menu/menu.h"
 #include "Soundengine/FxBus.h"
+#include "Soundengine/FxBus2.h"	// MODIFIED: FX bus B
 #include "IO/DIO.h"
 
 static uint16_t midiParser_activeNrpnNumber = 0;
@@ -273,6 +274,120 @@ float floatCvToFreq(float val)
 }
 //-----------------------------------------------------------
 /** handle all incoming CCs and invoke action*/
+//-----------------------------------------------------------------------------------
+// MODIFIED: separate open hi-hat voice (voice 7).
+// Same value conversions as the voice 6 cases in midiParser_ccHandler(), applied to hatVoice2.
+static void midiParser_hihat7SetParam(uint16_t paramNr, uint8_t itg)
+{
+	const float flt = itg/127.f;
+	HiHatVoice* const h = &hatVoice2;
+
+	switch(paramNr)
+	{
+	case PAR_HH7_COARSE:
+		h->osc.midiFreq &= 0x00ff;
+		h->osc.midiFreq |= itg << 8;
+		osc_recalcFreq(&h->osc);
+		break;
+	case PAR_HH7_FINE:
+		h->osc.midiFreq &= 0xff00;
+		h->osc.midiFreq |= itg;
+		osc_recalcFreq(&h->osc);
+		break;
+	case PAR_HH7_WAVE1:			h->osc.waveform = itg;								break;
+	case PAR_HH7_PWM:			h->pwm = flt;										break;
+	case PAR_HH7_ATTACK:		slopeEg2_setAttack(&h->oscVolEg,itg,false);			break;
+	case PAR_HH7_DECAY:			h->decayOpen = slopeEg2_calcDecay(itg);				break;
+	case PAR_HH7_SLOPE:			slopeEg2_setSlope(&h->oscVolEg,itg);				break;
+	case PAR_HH7_VOLUME_MOD:	h->volumeMod = itg != 0;							break;
+	case PAR_HH7_MOD_OSC_F1:
+		h->modOsc.midiFreq &= 0x00ff;
+		h->modOsc.midiFreq |= itg << 8;
+		osc_recalcFreq(&h->modOsc);
+		break;
+	case PAR_HH7_MOD_OSC_F2:
+		h->modOsc2.midiFreq &= 0x00ff;
+		h->modOsc2.midiFreq |= itg << 8;
+		osc_recalcFreq(&h->modOsc2);
+		break;
+	case PAR_HH7_MOD_OSC_GAIN1:	h->fmModAmount1 = flt;								break;
+	case PAR_HH7_MOD_OSC_GAIN2:	h->fmModAmount2 = flt;								break;
+	case PAR_HH7_WAVE2:			h->modOsc.waveform = itg;							break;
+	case PAR_HH7_WAVE3:			h->modOsc2.waveform = itg;							break;
+	case PAR_HH7_TRANS_WAVE:	transient_setWaveform(&h->transGen, itg);			break;
+	case PAR_HH7_TRANS_VOL:		h->transGen.volume = flt;							break;
+	case PAR_HH7_TRANS_FREQ:	h->transGen.pitch = 1.f + ((itg/33.9f)-0.75f);		break;
+	case PAR_HH7_FILTER_FREQ:	SVF_directSetFilterValue(&h->filter,valueShaperF2F(flt,FILTER_SHAPER));	break;
+	case PAR_HH7_RESO:			SVF_setReso(&h->filter, flt);						break;
+	case PAR_HH7_FILTER_TYPE:	h->filterType = itg+1;								break;
+	case PAR_HH7_FILTER_DRIVE:
+#if UNIT_GAIN_DRIVE
+		h->filter.drive = (itg/127.f);
+#else
+		SVF_setDrive(&h->filter, flt);
+#endif
+		break;
+	case PAR_HH7_VOL:			h->vol = flt;										break;
+	case PAR_HH7_PAN:			HiHat2_setPan(itg);									break;
+	case PAR_HH7_DECIMATION:	mixer_decimation_rate7 = valueShaperF2F(flt,-0.7f);	break;
+	case PAR_HH7_DISTORTION:	setDistortionShape(&h->distortion,flt);				break;
+	case PAR_HH7_AUDIO_OUT:		mixer_audioRouting7 = itg;							break;
+	case PAR_HH7_CHOKE:			hatVoice2_choke = itg != 0;							break;
+	default:
+		break;
+	}
+}
+
+// voice 7 setting <- voice 6 setting, used to upgrade kits saved before voice 7 existed
+static const uint16_t hihat7FromVoice6[][2] =
+{
+	{PAR_HH7_COARSE,		PAR_COARSE6},
+	{PAR_HH7_FINE,			PAR_FINE6},
+	{PAR_HH7_WAVE1,			PAR_WAVE1_HH},
+	{PAR_HH7_PWM,			PAR_PWM_6},
+	{PAR_HH7_ATTACK,		PAR_VELOA6},
+	{PAR_HH7_DECAY,			PAR_VELOD6_OPEN},
+	{PAR_HH7_SLOPE,			PAR_VOL_SLOPE6},
+	{PAR_HH7_VOLUME_MOD,	PAR_VOLUME_MOD_ON_OFF6},
+	{PAR_HH7_MOD_OSC_F1,	PAR_MOD_OSC_F1},
+	{PAR_HH7_MOD_OSC_F2,	PAR_MOD_OSC_F2},
+	{PAR_HH7_MOD_OSC_GAIN1,	PAR_MOD_OSC_GAIN1},
+	{PAR_HH7_MOD_OSC_GAIN2,	PAR_MOD_OSC_GAIN2},
+	{PAR_HH7_WAVE2,			PAR_WAVE2_HH},
+	{PAR_HH7_WAVE3,			PAR_WAVE3_HH},
+	{PAR_HH7_TRANS_WAVE,	PAR_TRANS6_WAVE},
+	{PAR_HH7_TRANS_VOL,		PAR_TRANS6_VOL},
+	{PAR_HH7_TRANS_FREQ,	PAR_TRANS6_FREQ},
+	{PAR_HH7_FILTER_FREQ,	PAR_FILTER_FREQ_6},
+	{PAR_HH7_RESO,			PAR_RESO_6},
+	{PAR_HH7_FILTER_TYPE,	PAR_FILTER_TYPE_6},
+	{PAR_HH7_FILTER_DRIVE,	PAR_FILTER_DRIVE_6},
+	{PAR_HH7_VOL,			PAR_VOL6},
+	{PAR_HH7_PAN,			PAR_PAN6},
+	{PAR_HH7_DECIMATION,	PAR_VOICE_DECIMATION6},
+	{PAR_HH7_DISTORTION,	PAR_HAT_DISTORTION},
+	{PAR_HH7_AUDIO_OUT,		PAR_AUDIO_OUT6},
+};
+
+void midiParser_applyHihat7Params(uint8_t* params)
+{
+	if(params[PAR_HH7_VALID] == 0)
+	{
+		// kit from before voice 7 existed: start voice 7 as a copy of the old shared hat
+		for(uint8_t i=0; i<sizeof(hihat7FromVoice6)/sizeof(hihat7FromVoice6[0]); i++)
+		{
+			params[hihat7FromVoice6[i][0]] = params[hihat7FromVoice6[i][1]];
+		}
+		params[PAR_HH7_CHOKE] = 1;
+		params[PAR_HH7_VALID] = 1;
+	}
+
+	for(uint16_t p = PAR_HH7_COARSE; p <= PAR_HH7_CHOKE; p++)
+	{
+		midiParser_hihat7SetParam(p, params[p]);
+	}
+}
+//-----------------------------------------------------------------------------------
 void midiParser_ccHandler(MidiMsg msg, uint8_t updateOriginalValue, uint8_t isFloatModulator, float v)
 {
 
@@ -1042,6 +1157,16 @@ void midiParser_ccHandler(MidiMsg msg, uint8_t updateOriginalValue, uint8_t isFl
 		{
 //			frontPanel_sendData(CC3,(uint8_t)(paramNr-255),dtypeValue);
 			paramNr = msg.data1 + 255;
+			// MODIFIED: FX bus B parameters live above 255 and arrive here as CC3
+			if((paramNr >= PAR_FX2_TYPE) && (paramNr <= PAR_FX2_P4) && !isFloatModulator)
+			{
+				FxBus2_setFromParam(paramNr, value.itg);
+			}
+			// MODIFIED: voice 7 (separate open hi-hat) parameters
+			else if((paramNr >= PAR_HH7_COARSE) && (paramNr <= PAR_HH7_CHOKE) && !isFloatModulator)
+			{
+				midiParser_hihat7SetParam(paramNr, value.itg);
+			}
 			//TODO: dirty hack that we return here, but all CC3 parameters arn't parsed here anyways
 			return;
 		}
@@ -1526,7 +1651,7 @@ void midiParser_ccHandler(MidiMsg msg, uint8_t updateOriginalValue, uint8_t isFl
 				fxBus.fxType = value.itg;
 				FxBus_updateParameter();
 				//change visible parameters to selected FX type
-				if(menu_activePage == FX_MODE_PAGE)
+				if((menu_activePage == FX_MODE_PAGE) && (menu_getSubPage() != FX_BUS_B_SUBPAGE)) // MODIFIED: stay on bus B page
 				{
 					if(menu_getSubPage() != fxBus.fxType)
 						menu_switchSubPage(fxBus.fxType, 1 );

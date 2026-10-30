@@ -93,4 +93,12 @@ void HiHat_calcAsync();
 //-0.5 = left 0=both max 0.5=right*/
 void HiHat_setPan(const uint8_t pan);
 
+// MODIFIED: separate open hi-hat voice (voice 7).
+// Voice 6 (closed) uses hatVoice, voice 7 (open) uses hatVoice2 with its own
+// complete sound. HiHat_trigger() routes isOpen=1 to hatVoice2.
+extern HiHatVoice hatVoice2;
+extern uint8_t hatVoice2_choke;	/**< 1: a closed hat (voice 6) cuts the open hat (voice 7) */
+void HiHat2_calcSyncBlock(int16_t* buf, const uint8_t size);
+void HiHat2_setPan(const uint8_t pan);
+
 #endif /* HIHAT_H_ */

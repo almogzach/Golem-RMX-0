@@ -26,6 +26,9 @@ extern float mixer_decimation_rate[7];		/**<sets the sample rate decimation. 0..
 #endif
 
 extern uint8_t mixer_audioRouting[6];
+// MODIFIED: voice 7 (separate open hi-hat)
+extern uint8_t mixer_audioRouting7;
+extern float mixer_decimation_rate7;
 
 enum
 {
@@ -36,6 +39,7 @@ enum
 	MIXER_ROUTING_DAC2_L,
 	MIXER_ROUTING_DAC2_R,
 	MIXER_ROUTING_FX_BUS,
+	MIXER_ROUTING_FX_BUS2,	// MODIFIED: second FX bus (FX B)
 };
 
 void mixer_init();

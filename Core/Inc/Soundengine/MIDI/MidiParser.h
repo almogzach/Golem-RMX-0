@@ -75,4 +75,7 @@ enum TxRxFilterValues
 // high nibble is TX low nibble is RX. see above (midiParser_setFilter) for bitmap
 extern uint8_t midiParser_txRxFilter;
 
+// MODIFIED: apply (and for old kits initialise) the separate open hi-hat voice 7 settings
+void midiParser_applyHihat7Params(uint8_t* params);
+
 #endif /* MIDIPARSER_H_ */

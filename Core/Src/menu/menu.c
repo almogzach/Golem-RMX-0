@@ -258,6 +258,17 @@ const Name valueNames[NUM_NAMES] =
 		{SHORT_CV, CAT_GLOBAL, LONG_CV},/*TEXT_CV_SAVE*/
 		{SHORT_MORPH_TARGET, CAT_SOUND, LONG_MORPH_TARGET},/*TEXT_MORPH_TARGET*/
 
+		// MODIFIED: FX bus B page labels
+		{SHORT_TYPE, CAT_FXB, LONG_TYPE},			/*TEXT_FXB_TYPE*/
+		{SHORT_OUT, CAT_FXB, LONG_AUDIO_OUT},		/*TEXT_FXB_ROUTING*/
+		{SHORT_DRY_WET, CAT_FXB, LONG_DRY_WET},	/*TEXT_FXB_DRY_WET*/
+		{SHORT_RATIO, CAT_FXB, LONG_RATIO},		/*TEXT_FXB_RATIO*/
+		{SHORT_P1, CAT_FXB, LONG_P1},				/*TEXT_FXB_P1*/
+		{SHORT_P2, CAT_FXB, LONG_P2},				/*TEXT_FXB_P2*/
+		{SHORT_P3, CAT_FXB, LONG_P3},				/*TEXT_FXB_P3*/
+		{SHORT_P4, CAT_FXB, LONG_P4},				/*TEXT_FXB_P4*/
+		{SHORT_CHOKE, CAT_VOICE, LONG_CHOKE},		/*TEXT_HH7_CHOKE*/	// MODIFIED: voice 7
+
 
 
 };
@@ -573,6 +584,46 @@ const enum Datatypes PROGMEM parameter_dtypes[NUM_PARAMS] = {
 		/*PAR_CV_SRC_16*/		DTYPE_MENU | (MENU_CV_SRC<<8),
 		/*PAR_CV_SRC_17*/		DTYPE_MENU | (MENU_CV_SRC<<8),
 		/*PAR_CV_SRC_18*/		DTYPE_MENU | (MENU_CV_SRC<<8),
+
+		// MODIFIED: FX bus B
+		/*PAR_FX2_TYPE*/		DTYPE_MENU | (MENU_FXB<<8),
+		/*PAR_FX2_ROUTING*/		DTYPE_MENU | (MENU_AUDIO_OUT_FX<<8),
+		/*PAR_FX2_DRY_WET*/		DTYPE_0B100,
+		/*PAR_FX2_RATIO*/		DTYPE_MENU | (MENU_RATIO<<8),
+		/*PAR_FX2_P1*/			DTYPE_0B127,
+		/*PAR_FX2_P2*/			DTYPE_0B127,
+		/*PAR_FX2_P3*/			DTYPE_0B127,
+		/*PAR_FX2_P4*/			DTYPE_0B127,
+
+		// MODIFIED: voice 7 (separate open hi-hat)
+		/*PAR_HH7_VALID*/		DTYPE_0B127,
+		/*PAR_HH7_COARSE*/		DTYPE_PM63,
+		/*PAR_HH7_FINE*/		DTYPE_PM63,
+		/*PAR_HH7_WAVE1*/		DTYPE_MENU | (MENU_WAVEFORM<<8),
+		/*PAR_HH7_PWM*/			DTYPE_0B127,
+		/*PAR_HH7_ATTACK*/		DTYPE_0B127,
+		/*PAR_HH7_DECAY*/		DTYPE_0B127,
+		/*PAR_HH7_SLOPE*/		DTYPE_0B127,
+		/*PAR_HH7_VOLUME_MOD*/	DTYPE_ON_OFF,
+		/*PAR_HH7_MOD_OSC_F1*/	DTYPE_PM63,
+		/*PAR_HH7_MOD_OSC_F2*/	DTYPE_PM63,
+		/*PAR_HH7_MOD_OSC_GAIN1*/ DTYPE_0B127,
+		/*PAR_HH7_MOD_OSC_GAIN2*/ DTYPE_0B127,
+		/*PAR_HH7_WAVE2*/		DTYPE_MENU | (MENU_WAVEFORM<<8),
+		/*PAR_HH7_WAVE3*/		DTYPE_MENU | (MENU_WAVEFORM<<8),
+		/*PAR_HH7_TRANS_WAVE*/	DTYPE_MENU | (MENU_TRANS<<8),
+		/*PAR_HH7_TRANS_VOL*/	DTYPE_0B127,
+		/*PAR_HH7_TRANS_FREQ*/	DTYPE_0B127,
+		/*PAR_HH7_FILTER_FREQ*/	DTYPE_0B127,
+		/*PAR_HH7_RESO*/		DTYPE_0B127,
+		/*PAR_HH7_FILTER_TYPE*/	DTYPE_MENU | (MENU_FILTER<<8),
+		/*PAR_HH7_FILTER_DRIVE*/ DTYPE_0B127,
+		/*PAR_HH7_VOL*/			DTYPE_0B127,
+		/*PAR_HH7_PAN*/			DTYPE_PM63,
+		/*PAR_HH7_DECIMATION*/	DTYPE_0B127,
+		/*PAR_HH7_DISTORTION*/	DTYPE_0B127,
+		/*PAR_HH7_AUDIO_OUT*/	DTYPE_MENU | (MENU_AUDIO_OUT<<8),
+		/*PAR_HH7_CHOKE*/		DTYPE_ON_OFF,
 
 
 	    /*PAR_ROLL*/ 			DTYPE_MENU | (MENU_ROLL_RATES<<8),
@@ -1733,7 +1784,7 @@ void menu_repaintGeneric()
 
 			case DTYPE_PM63: //switch(parameters_dtypes[parNr] & 0x0F)
 				// -63 to +63
-				if( (parNr == PAR_COARSE1) || (parNr == PAR_COARSE2) || (parNr == PAR_COARSE3) || (parNr == PAR_COARSE4) || (parNr == PAR_COARSE5) || (parNr == PAR_COARSE6)  || (parNr == PAR_FM_FREQ1) || (parNr == PAR_FM_FREQ2) || (parNr == PAR_FM_FREQ3) || (parNr == PAR_MOD_OSC_F1_CYM)  || (parNr == PAR_MOD_OSC_F2_CYM) || (parNr == PAR_MOD_OSC_F1) || (parNr == PAR_MOD_OSC_F2) )
+				if( (parNr == PAR_COARSE1) || (parNr == PAR_COARSE2) || (parNr == PAR_COARSE3) || (parNr == PAR_COARSE4) || (parNr == PAR_COARSE5) || (parNr == PAR_COARSE6)  || (parNr == PAR_FM_FREQ1) || (parNr == PAR_FM_FREQ2) || (parNr == PAR_FM_FREQ3) || (parNr == PAR_MOD_OSC_F1_CYM)  || (parNr == PAR_MOD_OSC_F2_CYM) || (parNr == PAR_MOD_OSC_F1) || (parNr == PAR_MOD_OSC_F2) || (parNr == PAR_HH7_COARSE) || (parNr == PAR_HH7_MOD_OSC_F1) || (parNr == PAR_HH7_MOD_OSC_F2) ) // MODIFIED: + voice 7
 				{
 					numtostrps(&editDisplayBuffer[1][13],(int8_t)(curParmVal - 60));
 				}
@@ -1852,7 +1903,7 @@ void menu_repaintGeneric()
 					*/
 				case DTYPE_PM63: //switch(parameters[parNr].dtype&0x0F)
 					// -63 to 64
-					if( (parNr == PAR_COARSE1) || (parNr == PAR_COARSE2) || (parNr == PAR_COARSE3) || (parNr == PAR_COARSE4) || (parNr == PAR_COARSE5) || (parNr == PAR_COARSE6)  || (parNr == PAR_FM_FREQ1) || (parNr == PAR_FM_FREQ2) || (parNr == PAR_FM_FREQ3) || (parNr == PAR_MOD_OSC_F1_CYM)  || (parNr == PAR_MOD_OSC_F2_CYM) || (parNr == PAR_MOD_OSC_F1) || (parNr == PAR_MOD_OSC_F2) )
+					if( (parNr == PAR_COARSE1) || (parNr == PAR_COARSE2) || (parNr == PAR_COARSE3) || (parNr == PAR_COARSE4) || (parNr == PAR_COARSE5) || (parNr == PAR_COARSE6)  || (parNr == PAR_FM_FREQ1) || (parNr == PAR_FM_FREQ2) || (parNr == PAR_FM_FREQ3) || (parNr == PAR_MOD_OSC_F1_CYM)  || (parNr == PAR_MOD_OSC_F2_CYM) || (parNr == PAR_MOD_OSC_F1) || (parNr == PAR_MOD_OSC_F2) || (parNr == PAR_HH7_COARSE) || (parNr == PAR_HH7_MOD_OSC_F1) || (parNr == PAR_HH7_MOD_OSC_F2) ) // MODIFIED: + voice 7
 					{
 						numtostrps(valueAsText,(int8_t)(curParmVal - 60));
 					}
@@ -2780,6 +2831,9 @@ static uint8_t getMaxEntriesForMenu(uint8_t menuId)
 	case MENU_FX:
 		return fxNames[0][0];
 
+	case MENU_FXB:	// MODIFIED: FX bus B
+		return fxbNames[0][0];
+
 	case MENU_DIST:
 		return distNames[0][0];
 
@@ -2884,6 +2938,10 @@ static void getMenuItemNameForValue(const uint8_t menuId, const uint8_t curParmV
 
 	case MENU_FX:
 		p=fxNames[curParmVal+1];
+		break;
+
+	case MENU_FXB:	// MODIFIED: FX bus B
+		p=fxbNames[curParmVal+1];
 		break;
 
 	case MENU_DIST:
@@ -3459,7 +3517,22 @@ void menu_switchSubPage(uint8_t subPageNr, uint8_t toggle)
 	uint8_t activeParameter	= menuIndex & MASK_PARAMETER;
 	uint8_t activePage		= (menuIndex&MASK_PAGE)>>PAGE_SHIFT;
 
-	if((toggle) && (subPageNr == activePage)) { // toggle only
+	if((toggle) && (subPageNr == activePage) && (menu_activePage == FX_MODE_PAGE)
+#if MOD_MATRIX_4_PAGE
+		&& (buttonHandler_getMode() != SELECT_MODE_MOD)
+#endif
+		) {
+		// MODIFIED: FX page cycles bus A screen 1 -> bus A screen 2 -> bus B screen 1 -> bus B screen 2 -> bus A
+		if((activeParameter < 4) && has2ndPage(activePage)) {
+			activeParameter = 4;
+		} else if(activePage != FX_BUS_B_SUBPAGE) {
+			activePage = FX_BUS_B_SUBPAGE;
+			activeParameter = 0;
+		} else {
+			activePage = fxBus.fxType;
+			activeParameter = 0;
+		}
+	} else if((toggle) && (subPageNr == activePage)) { // toggle only
 		// we are toggling to next screen, or back to first
 		if(activeParameter < 4) {
 			// toggle to next if possible
@@ -3581,8 +3654,23 @@ void menu_switchPage(uint8_t pageNr)
 		break;
 
 	case FX_MODE_PAGE:
-
-		menu_switchSubPage(fxBus.fxType, 1 );
+		// MODIFIED: if bus B is showing, toggle from bus B instead of jumping back to bus A
+		if((menu_activePage == FX_MODE_PAGE) && (menu_getSubPage() == FX_BUS_B_SUBPAGE))
+		{
+			menu_switchSubPage(FX_BUS_B_SUBPAGE, 1 );
+		}
+		else
+		{
+			if(menu_activePage != FX_MODE_PAGE)
+			{
+				// entering the FX page: start on bus A, screen 1
+				menu_switchSubPage(fxBus.fxType, 0 );
+			}
+			else
+			{
+				menu_switchSubPage(fxBus.fxType, 1 );
+			}
+		}
 		editModeActive = 0;
 		menu_activePage=FX_MODE_PAGE;
 		break;

@@ -1,4 +1,74 @@
-# LXR V2 Eurorack firmware (STM32F765VG)
+# FX Bus B + Separate Hats: custom firmware for the Erica Synths LXR Eurorack module
+
+> **Unofficial, modified firmware.** This is not official Erica Synths firmware and is not
+> approved by, affiliated with or supported by Erica Synths. Install it at your own risk.
+> The start-up screen shows **`LXR2 V1.51.1 mod`** so you can always tell it apart.
+
+Based on the official LXR V2 Eurorack firmware **v1.51**. It adds two features and changes nothing else.
+
+## What it adds
+
+### 1. A second FX bus (FX B)
+Different voices can now go to different effects at the same time.
+
+- Every voice's **Output** setting (Mix page) has a new choice, **FXB**, after **FX**.
+- **FX A** is unchanged: Drive, Ring, Compressor or Delay.
+- **FX B** offers Drive, Ring or Compressor, each with its own output, dry/wet and 4 parameters.
+  Delay stays on FX A only, because the module has memory for one delay.
+- Press **SHIFT + FX** as usual. Each further press moves on: Bus A screen 1, Bus A screen 2,
+  **Fx B** screen 1, Fx B screen 2, then back to Bus A.
+- FX B parameters P1–P4:
+
+  | FX B type | P1 | P2 | P3 | P4 | Ratio |
+  |---|---|---|---|---|---|
+  | `drv` | drive | color | tone | volume | unused |
+  | `rng` | frequency | – | – | – | unused |
+  | `cmp` | attack | release | threshold | gain | used |
+
+### 2. The open hi-hat (voice 7) is now a separate voice
+Previously voices 6 and 7 shared one hi-hat sound and only had different decay times.
+Voice 7 now has its own complete sound:
+
+- Oscillator, waveform/sample, PWM, both FM mod oscillators, transient (Click), filter, attack/decay/slope
+  and velocity-to-volume.
+- Its own Mix page: volume, pan, sample-rate reduction, drive and output (including **FX** and **FXB**).
+- A new **chk (Choke)** setting on voice 7's Mix page. On: voice 6 cuts voice 7, as before. Off: both ring
+  out together, so voice 7 can be a ride or another percussion sound.
+
+Limits: voice 7 has no LFO of its own (its LFO page still edits voice 6's LFO), and the CV pitch input
+reaches voice 6 only.
+
+## Your existing kits are safe
+- Kits saved with official firmware load with **FX B off**.
+- Voice 7 starts as a copy of the old shared hat, with its old open decay and Choke on, so the kit sounds the
+  same until you change something. Save the kit to store voice 7's own settings.
+- A kit saved with this firmware still loads on official 1.51, which ignores the extra settings.
+
+## Install
+1. Download `LXRE_V2_V1.51.1.img` from the [Releases](../../releases) page.
+2. Copy it to the top folder of a FAT32 SD card and delete any other `LXRE*.img` files from the card.
+3. With the module off, insert the card, then **press and hold the encoder** (the menu knob next to the display)
+   while switching the power on. Keep holding until the updater screen appears.
+4. Wait for the success message. The module restarts with the new firmware.
+
+**Going back:** flash the official 1.51 file from Erica Synths the same way. The updater (bootloader) is never
+changed by an update, so you can always return.
+
+## Notes
+- CPU: the module now computes one extra hi-hat voice and up to two effects. Heavy settings on both FX buses at
+  once are the most demanding case; if you hear crackles, turn FX B off.
+- Build: same as the official firmware (see below). Tested with Arm GNU Toolchain GCC 15.
+- Source changes are marked `MODIFIED` in the code.
+
+## Licence
+GPL-3.0-only with the additional terms in [NOTICE.md](NOTICE.md), unchanged from the original. "Erica Synths"
+and "LXR" are trademarks of Erica Synths and are used here only to say which module this firmware is for.
+
+---
+
+*The original README for the official firmware follows.*
+
+## Original README: LXR V2 Eurorack firmware (STM32F765VG)
 
 Firmware for the LXR V2 Eurorack drum module: an STM32F765 (Cortex-M7, 216 MHz) running the drum
 voices, FX bus, trigger and CV inputs, MIDI, SD-card kit storage and the LCD/encoder UI.

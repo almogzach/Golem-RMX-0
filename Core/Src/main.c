@@ -26,7 +26,7 @@
 
 // The CMake build passes FIRMWARE_VERSION from project(VERSION); this is the fallback.
 #ifndef FIRMWARE_VERSION
-#define FIRMWARE_VERSION "1.51"
+#define FIRMWARE_VERSION "1.51.1"
 #endif
 //#define f_unmount(path) f_mount(0, path, 0)
 
@@ -241,8 +241,10 @@ lcd_clear();
 lcd_string("Sonic Potions");
 //goto 2nd line
 lcd_setcursor(0,2);
-lcd_string("LXR2 Drums V");
+// MODIFIED firmware (FX bus B): marked as required by NOTICE.md
+lcd_string("LXR2 V");
 lcd_string(FIRMWARE_VERSION);
+lcd_string(" mod");
 
 lcd_showSplash();
 

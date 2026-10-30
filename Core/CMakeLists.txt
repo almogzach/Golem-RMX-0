@@ -104,6 +104,7 @@ add_library(lxr_engine OBJECT
     Src/Soundengine/cs4344_cs5343.c
     Src/Soundengine/FIFO.c
     Src/Soundengine/FxBus.c
+    Src/Soundengine/FxBus2.c
     Src/Soundengine/ModMatrix_Processor.c
     Src/Soundengine/Soundengine.c
     Src/Soundengine/TriggerProcessor.c

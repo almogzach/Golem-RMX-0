@@ -25,6 +25,7 @@
 #include "main.h"
 #include "menu/menu.h"
 #include "Soundengine/FxBus.h"
+#include "Soundengine/FxBus2.h"	// MODIFIED: FX bus B
 #include "Soundengine/MIDI/MidiVoiceControl.h"
 
 	uint8_t r2_Available;
@@ -35,6 +36,13 @@
 
 //-----------------------------------------------------------------------
 INDTCMZ uint8_t mixer_audioRouting[6];
+// MODIFIED: FX bus B sample buffer of the block being rendered (set in mixer_calcNextSampleBlock)
+static int16_t* mixer_fxBus2Data = NULL;
+// MODIFIED: voice 7 (separate open hi-hat) output routing and decimation
+uint8_t mixer_audioRouting7 = 0;
+float mixer_decimation_rate7 = 1;
+static float mixer_decimation_cnt7 = 0;
+static int16_t mixer_voice_sample7 = 0;
 //-----------------------------------------------------------------------
 #if USE_DECIMATOR
 INDTCMZ float mixer_decimation_rate[7];		/**<sets the sample rate decimation. 0..1 = full rate*/
@@ -57,6 +65,7 @@ void mixer_init()
 #endif
 
 	FxBus_init();
+	FxBus2_init();	// MODIFIED: FX bus B
 }
 //-----------------------------------------------------------------------
 IN_ITCM_RAM void mixer_decimateBlock(const uint8_t voiceNr, int16_t* buffer)
@@ -467,6 +476,23 @@ IN_ITCM_RAM static inline void mixer_addDataToOutput(uint8_t dest, const float p
 #endif
 		break;
 
+	case MIXER_ROUTING_FX_BUS2: // MODIFIED: FX bus B, same stereo summing as bus A
+	{
+		int16_t* fx2 = mixer_fxBus2Data;
+		if(fx2 == NULL) break;
+		for(i=0;i<OUTPUT_DMA_SIZE;i++)
+		{
+			int32_t y;
+			int32_t x;
+			y = *((int32_t*)fx2);
+			x = __PKHBT( (int16_t)(data[i] * panL), (int16_t)(data[i] * panR), 16);
+
+			*((int32_t*)fx2) = __QADD16(x, y);
+			fx2 += 2;
+		}
+	}
+		break;
+
 	case MIXER_ROUTING_DAC1_STEREO:
 		for(i=0;i<OUTPUT_DMA_SIZE;i++)
 		{
@@ -546,6 +572,28 @@ IN_ITCM_RAM static inline void mixer_addDataToOutput(uint8_t dest, const float p
 }
 //#pragma GCC pop_options
 //-----------------------------------------------------------------------
+//-----------------------------------------------------------------------
+// MODIFIED: voice 7 (separate open hi-hat). A separate, non-ITCM function so the
+// 16 KB ITCM holding mixer_calcNextSampleBlock() barely grows.
+static void __attribute__((noinline)) mixer_calcVoice7Block(int16_t* sampleData, int16_t* outL,int16_t* outR,int16_t* outL2, int16_t* outR2, int16_t *fxBuffer)
+{
+	HiHat2_calcSyncBlock(sampleData,OUTPUT_DMA_SIZE);
+
+	//decimate voice 7 (own rate, also scaled by the global decimation like the other voices)
+	const float phaseInc = mixer_decimation_rate7*mixer_decimation_rate[6];
+	for(uint8_t i=0;i<OUTPUT_DMA_SIZE;i++)
+	{
+		mixer_decimation_cnt7 += phaseInc;
+		if(mixer_decimation_cnt7 >= 1.f)
+		{
+			mixer_decimation_cnt7 -= 1.f;
+			mixer_voice_sample7 = sampleData[i];
+		}
+		sampleData[i] = mixer_voice_sample7;
+	}
+
+	mixer_addDataToOutput(mixer_audioRouting7, hatVoice2.triggeredPanL, hatVoice2.triggeredPanR, sampleData, outL, outR, outL2, outR2, fxBuffer);
+}
 IN_ITCM_RAM void mixer_calcNextSampleBlock(int16_t* output,int16_t* output2)
 {
 	voiceControl_processQueue();
@@ -578,6 +626,7 @@ IN_ITCM_RAM void mixer_calcNextSampleBlock(int16_t* output,int16_t* output2)
 	SVF_recalcFreq(&snareVoice.filter);
 	SVF_recalcFreq(&cymbalVoice.filter);
 	SVF_recalcFreq(&hatVoice.filter);
+	SVF_recalcFreq(&hatVoice2.filter);	// MODIFIED: voice 7
 
 	//process CV
 	CV_process();
@@ -598,6 +647,8 @@ IN_ITCM_RAM void mixer_calcNextSampleBlock(int16_t* output,int16_t* output2)
 	//befor output distribution
 	int16_t sampleData[OUTPUT_DMA_SIZE];
 	int16_t fxBusData[OUTPUT_DMA_SIZE*2];
+	int16_t fxBus2Data[OUTPUT_DMA_SIZE*2];	// MODIFIED: FX bus B
+	mixer_fxBus2Data = fxBus2Data;
 
 	const uint8_t pos = 0;
 
@@ -606,6 +657,7 @@ IN_ITCM_RAM void mixer_calcNextSampleBlock(int16_t* output,int16_t* output2)
 	bufferTool_clearBuffer(output2,OUTPUT_DMA_SIZE*2);
 
 	bufferTool_clearBuffer(fxBusData,OUTPUT_DMA_SIZE*2);
+	bufferTool_clearBuffer(fxBus2Data,OUTPUT_DMA_SIZE*2);	// MODIFIED: FX bus B
 
 	//calc voice 1
 	calcDrumVoiceSyncBlock(0, sampleData,OUTPUT_DMA_SIZE);
@@ -717,8 +769,13 @@ IN_ITCM_RAM void mixer_calcNextSampleBlock(int16_t* output,int16_t* output2)
 #endif
 #endif
 
+	// MODIFIED: voice 7 - separate open hi-hat (kept out of ITCM, see mixer_calcVoice7Block)
+	mixer_calcVoice7Block(sampleData,&output[pos],&output[pos+1],&output2[pos],&output2[pos+1], fxBusData);
+
 #endif
 	FxBus_process(fxBusData,  &output[pos],&output[pos+1],&output2[pos],&output2[pos+1], OUTPUT_DMA_SIZE);
+	FxBus2_process(fxBus2Data, &output[pos],&output[pos+1],&output2[pos],&output2[pos+1], OUTPUT_DMA_SIZE);	// MODIFIED: FX bus B
+	mixer_fxBus2Data = NULL;
 /*
 	if(activeParameters[UNUSED_PAR_GLO_SAT])
 	{

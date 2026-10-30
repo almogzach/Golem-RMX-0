@@ -30,6 +30,7 @@
 #include "Soundengine/MIDI/MidiParser.h"
 //#include "Soundengine/Sequencer/sequencer.h"
 #include "Soundengine/Soundengine.h"
+#include "Soundengine/FxBus2.h"	// MODIFIED: FX bus B
 
 FRESULT preset_savePatternSD(uint8_t presetNr);
 //FRESULT preset_loadPatternSD(uint8_t presetNr);
@@ -615,6 +616,8 @@ void preset_loadDrumsetRam(uint8_t presetNr, uint8_t isMorph, uint8_t sendImmedi
 		{
 			//load everything but CV routing
 			memcpy(activeParameters, mainParameters[presetNr], sizeof(uint8_t) * PAR_CV_DEST_1);
+			// MODIFIED: FX bus B and voice 7 settings are stored after the CV routing but belong to the kit
+			memcpy(&activeParameters[PAR_FX2_TYPE], &mainParameters[presetNr][PAR_FX2_TYPE], sizeof(uint8_t) * (END_OF_SOUND_PARAMETERS - PAR_FX2_TYPE));
 
 
 		}
@@ -1184,6 +1187,11 @@ IN_ITCM_RAM void preset_sendDrumsetParametersImmediate()
 			}
 			soundengine_process();
 		}
+
+		// MODIFIED: FX bus B parameters are above 255, apply them directly
+		FxBus2_loadFromParameters(activeParameters);
+	// MODIFIED: separate open hi-hat voice 7 (also upgrades kits saved before it existed)
+	midiParser_applyHihat7Params(activeParameters);
 }
 //----------------------------------------------------
 // send loaded parameters to back
@@ -1223,8 +1231,11 @@ void preset_sendDrumsetParameters()
 	// send parameters (possibly combined with morph parameters) to back
 	preset_morph(activeParameters[PAR_MORPH], 1);
 
-
-
+	// MODIFIED: FX bus B parameters are above 255, which the send loop above skips,
+	// so apply them directly
+	FxBus2_loadFromParameters(activeParameters);
+	// MODIFIED: separate open hi-hat voice 7 (also upgrades kits saved before it existed)
+	midiParser_applyHihat7Params(activeParameters);
 }
 //----------------------------------------------------
 /*

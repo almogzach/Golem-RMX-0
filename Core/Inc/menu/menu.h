@@ -28,6 +28,8 @@
 //-----------------------------------------------------------------
 //#define NUM_PAGES 12		
 #define NUM_SUB_PAGES 8	// a maximum of 8 subpages 
+// MODIFIED: FX page subpage that shows FX bus B (bus A uses subpage = its FX type, 0..5)
+#define FX_BUS_B_SUBPAGE 6
 #define MASK_PARAMETER 0x07
 
 #define MASK_PAGE 0xf8
@@ -278,6 +280,16 @@ enum NamesEnum
 	TEXT_CV_SAVE,
 	TEXT_MORPH_TARGET,
 
+	// MODIFIED: FX bus B page labels
+	TEXT_FXB_TYPE,
+	TEXT_FXB_ROUTING,
+	TEXT_FXB_DRY_WET,
+	TEXT_FXB_RATIO,
+	TEXT_FXB_P1,
+	TEXT_FXB_P2,
+	TEXT_FXB_P3,
+	TEXT_FXB_P4,
+	TEXT_HH7_CHOKE,		// MODIFIED: voice 7 choke on/off
 
 	NUM_NAMES
 };
@@ -391,6 +403,7 @@ enum shortNamesEnum
 	SHORT_1VOCT,
 	SHORT_CV,
 	SHORT_MORPH_TARGET,
+	SHORT_CHOKE,		// MODIFIED: voice 7 choke
 
 	
 };
@@ -427,7 +440,8 @@ enum catNamesEnum
 	CAT_MIDI,
 	CAT_CLOCK,
 	CAT_FX,
-	CAT_MOD
+	CAT_MOD,
+	CAT_FXB		// MODIFIED: FX bus B
 };
 //-----------------------------------------------------------------
 // these must correspond with longNames in MenuText.h
@@ -524,7 +538,8 @@ enum longNamesEnum
 	LONG_SRC,
 	LONG_1VOCT,
 	LONG_CV,
-	LONG_MORPH_TARGET
+	LONG_MORPH_TARGET,
+	LONG_CHOKE		// MODIFIED: voice 7 choke
 	
 };
 
