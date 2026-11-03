@@ -31,6 +31,7 @@
 //#include "Soundengine/Sequencer/sequencer.h"
 #include "Soundengine/Soundengine.h"
 #include "Soundengine/FxBus2.h"	// MODIFIED: FX bus B
+#include "menu/randomizer.h"	// MODIFIED: per-voice morph (voice parameter lists)
 
 FRESULT preset_savePatternSD(uint8_t presetNr);
 //FRESULT preset_loadPatternSD(uint8_t presetNr);
@@ -1990,25 +1991,11 @@ void preset_morph_tick()
 	if(morph_state)
 	{
 
-		uint8_t morph;
-
-		//Do not morph audio routing
-		if((morph_index >= PAR_AUDIO_OUT1) && (morph_index <= PAR_AUDIO_OUT6)) //morph_index++;
-		{
-			//always use source kit (morph = 0) for audio routing
-			morph = 0;
-		}
-		else
-		{
-			//morph = activeParameters[PAR_MORPH];
-			morph = preset_morphValue;
-		}
-
 		static MidiMsg msg = {0,0,0, {0,0,0}};
 
-
-		//const uint8_t val = interpolate(activeParameters[morph_index],morphParameters[morph_index],morph);
-		const uint8_t val = interpolate(activeParameters[morph_index],mainParameters[activeParameters[PAR_MORPH_TARGET]][morph_index],morph);
+		// MODIFIED: preset_getMorphValue() leaves routing alone and, when a morph voice is
+		// selected, only morphs that voice's parameters
+		const uint8_t val = preset_getMorphValue(morph_index, preset_morphValue);
 
 
 		if(morph_index < 128)
@@ -2042,6 +2029,14 @@ void preset_morph_tick()
 		//	msg.data1 &= 0x7f;
 			midiParser_ccHandler(msg,1, 0, 0.f);
 
+		}
+		else if ((morph_index >= PAR_HH7_COARSE) && (morph_index <= PAR_HH7_CHOKE))
+		{
+			// MODIFIED: voice 7 (separate open hi-hat) parameters live above 255
+			msg.status = MIDI_CC3;
+			msg.data1 = (uint8_t)(morph_index - 255);
+			msg.data2 = val;
+			midiParser_ccHandler(msg,1, 0, 0.f);
 		}
 		else
 		{
@@ -2115,7 +2110,14 @@ void preset_morph(uint8_t morph, uint8_t forceResetIndex)
 //----------------------------------------------------
 uint8_t preset_getMorphValue(uint16_t index, uint8_t morph)
 {
-	return interpolate(activeParameters[index],mainParameters[activeParameters[PAR_MORPH_TARGET]][index],morph);
+	// MODIFIED: per-voice morph. Parameters outside the selected morph voice (and routing)
+	// keep the current kit's value.
+	const uint8_t target = activeParameters[PAR_MORPH_TARGET];
+	if(!voiceParams_isMorphed(index, mainParameters[target][PAR_HH7_VALID] != 0))
+	{
+		morph = 0;
+	}
+	return interpolate(activeParameters[index],mainParameters[target][index],morph);
 };
 //----------------------------------------------------
 #if !EURORACK_MODULE

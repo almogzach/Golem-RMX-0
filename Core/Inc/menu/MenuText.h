@@ -46,6 +46,9 @@
 #define MENU_CV_SAVE		27
 #define MENU_AUDIO_OUT_FX	28
 #define MENU_FXB			29	// MODIFIED: FX bus B types
+#define MENU_RND_TARGET		30	// MODIFIED: randomizer target
+#define MENU_RND_ACT		31	// MODIFIED: randomizer go / undo
+#define MENU_MORPH_VOICE	32	// MODIFIED: morph voice select
 
 //-----------------------------------------------------------------
 // Shared texts. Reduce mem usage by pooling common text
@@ -175,6 +178,40 @@ const char fxNames[][4] =
 	{"cmp"},
 	{"del"},
 	//{"rev"}
+};
+//-----------------------------------------------------------------
+// MODIFIED: randomizer target (voice 1-7 or whole kit)
+const char rndTargetNames[][4] =
+{
+	{8},		//number of entries
+	{"v1"},
+	{"v2"},
+	{"v3"},
+	{"v4"},
+	{"v5"},
+	{"v6"},
+	{"v7"},
+	{"kit"},
+};
+// MODIFIED: which voice the morph knob affects
+const char morphVoiceNames[][4] =
+{
+	{8},		//number of entries
+	{"all"},
+	{"v1"},
+	{"v2"},
+	{"v3"},
+	{"v4"},
+	{"v5"},
+	{"v6"},
+	{"v7"},
+};
+// MODIFIED: randomizer action. Turning the knob to "go!" runs it, then it returns to "---"
+const char rndActNames[][4] =
+{
+	{2},		//number of entries
+	{"---"},
+	{"go!"},
 };
 //-----------------------------------------------------------------
 // MODIFIED: FX bus B types (no delay: the delay memory belongs to bus A)
@@ -536,6 +573,10 @@ const char shortNames[][4]  =
 	{"cv"},
 	{"mtg"},
 	{"chk"},	// MODIFIED: voice 7 choke
+	{"tgt"},	// MODIFIED: randomizer target
+	{"rnd"},	// MODIFIED: randomize
+	{"und"},	// MODIFIED: undo randomize
+	{"mvc"},	// MODIFIED: morph voice
 
 };
 //-----------------------------------------------------------------
@@ -574,6 +615,7 @@ const char catNames[][16] =
 	{"Fx"},
 	{"Mod"},
 	{"Fx B"},	// MODIFIED: FX bus B
+	{"Random"},	// MODIFIED: randomizer
 };
 //-----------------------------------------------------------------
 // these must correspond to longNamesEnum
@@ -673,6 +715,10 @@ const char longNames[][16] =
 	{"CV Save"},
 	{"MrphTrgt"},
 	{"Choke"},	// MODIFIED: voice 7 choke
+	{"Target"},	// MODIFIED: randomizer
+	{"Randomze"},
+	{"Undo"},
+	{"MrphVoce"},	// MODIFIED: morph voice
 };
 
 

@@ -1,62 +1,79 @@
-# FX Bus B + Separate Hats: custom firmware for the Erica Synths LXR Eurorack module
+# Golem (LXR firmware mod)
 
-> **Unofficial, modified firmware.** This is not official Erica Synths firmware and is not
-> approved by, affiliated with or supported by Erica Synths. Install it at your own risk.
-> The start-up screen shows **`LXR2 V1.51.1 mod`** so you can always tell it apart.
+Unofficial custom firmware for the Erica Synths LXR Eurorack module.
 
-Based on the official LXR V2 Eurorack firmware **v1.51**. It adds two features and changes nothing else.
+> **Unofficial, modified firmware.** Golem is not official Erica Synths firmware and is not approved by,
+> affiliated with or supported by Erica Synths. Install it at your own risk.
+> The start-up screen shows **`GOLEM v1.51.3`** / **`LXR firmware mod`** so you can always tell it apart.
 
-## What it adds
+Golem is based on the official LXR V2 Eurorack firmware **v1.51** from
+[erica-synths/lxr-eurorack-app](https://github.com/erica-synths/lxr-eurorack-app), with the full original history
+kept in this repository. It adds four features and leaves everything else as it was.
+
+## What Golem adds
 
 ### 1. A second FX bus (FX B)
-Different voices can now go to different effects at the same time.
+Different voices can use different effects at the same time.
 
 - Every voice's **Output** setting (Mix page) has a new choice, **FXB**, after **FX**.
 - **FX A** is unchanged: Drive, Ring, Compressor or Delay.
-- **FX B** offers Drive, Ring or Compressor, each with its own output, dry/wet and 4 parameters.
+- **FX B** offers Drive, Ring or Compressor, with its own output, dry/wet and 4 parameters.
   Delay stays on FX A only, because the module has memory for one delay.
-- Press **SHIFT + FX** as usual. Each further press moves on: Bus A screen 1, Bus A screen 2,
-  **Fx B** screen 1, Fx B screen 2, then back to Bus A.
-- FX B parameters P1–P4:
 
-  | FX B type | P1 | P2 | P3 | P4 | Ratio |
-  |---|---|---|---|---|---|
-  | `drv` | drive | color | tone | volume | unused |
-  | `rng` | frequency | – | – | – | unused |
-  | `cmp` | attack | release | threshold | gain | used |
+| FX B type | P1 | P2 | P3 | P4 | Ratio |
+|---|---|---|---|---|---|
+| `drv` | drive | color | tone | volume | unused |
+| `rng` | frequency | – | – | – | unused |
+| `cmp` | attack | release | threshold | gain | used |
 
-### 2. The open hi-hat (voice 7) is now a separate voice
-Previously voices 6 and 7 shared one hi-hat sound and only had different decay times.
-Voice 7 now has its own complete sound:
+### 2. The open hi-hat (voice 7) is a separate voice
+Voice 7 has its own complete sound (oscillator, waveform/sample, PWM, FM, transient, filter, envelope) and its own
+Mix page (volume, pan, sample-rate reduction, drive, output including **FX** and **FXB**).
+A new **chk (Choke)** setting on voice 7's Mix page turns the closed-hat choke on or off.
+Voice 7 has no LFO of its own, and the CV pitch input reaches voice 6 only.
 
-- Oscillator, waveform/sample, PWM, both FM mod oscillators, transient (Click), filter, attack/decay/slope
-  and velocity-to-volume.
-- Its own Mix page: volume, pan, sample-rate reduction, drive and output (including **FX** and **FXB**).
-- A new **chk (Choke)** setting on voice 7's Mix page. On: voice 6 cuts voice 7, as before. Off: both ring
-  out together, so voice 7 can be a ride or another percussion sound.
+### 3. Parameter randomizer
+A **Random** page for creating sounds and kits quickly.
 
-Limits: voice 7 has no LFO of its own (its LFO page still edits voice 6's LFO), and the CV pitch input
-reaches voice 6 only.
+| Control | What it does |
+|---|---|
+| **amt** | 0–100. Low values make variations of the current sound; 100 makes a new one. |
+| **tgt** | `v1`–`v7` for one voice, or `kit` for all seven. Set to the voice you were editing. |
+| **rnd** | Turn to `go!` to roll. It returns to `---`, so each further turn rolls another variation. |
+| **und** | Turn to `go!` to restore the sound from before the last roll. |
+
+It changes pitch, waveforms, envelopes, FM, transient, filter, drive, sample rate, pan and LFOs within musical
+limits (drum-length decays, no filter self-oscillation, moderate drive). It never changes volumes, outputs,
+FX routing, choke, velocity response, the FX buses, morph or the CV mod matrix.
+
+### 4. Per-voice morph
+The Performance page has a new **mvc** (morph voice) control. `all` morphs the whole kit as before; `v1`–`v7`
+morphs only that voice toward the same voice in the morph target kit. Outputs and choke never morph.
+Voice 7's own settings take part in morphing toward kits saved with Golem.
+
+## Navigation
+- **SHIFT + FX**, then press again to cycle: FX A → **Fx B** → **Random** → FX A.
+- Performance page: **mrp** (morph), **mtg** (morph target), **sr** (sample rate), **mvc** (morph voice).
 
 ## Your existing kits are safe
-- Kits saved with official firmware load with **FX B off**.
-- Voice 7 starts as a copy of the old shared hat, with its old open decay and Choke on, so the kit sounds the
-  same until you change something. Save the kit to store voice 7's own settings.
-- A kit saved with this firmware still loads on official 1.51, which ignores the extra settings.
+- Kits saved with official firmware load with FX B off, and voice 7 starts as a copy of the old shared hat with
+  choke on, so they sound the same until you change something.
+- Kits saved with Golem still load on official 1.51, which ignores the extra settings.
 
 ## Install
-1. Download `LXRE_V2_V1.51.1.img` from the [Releases](../../releases) page.
+1. Download `LXRE_V2_V1.51.3.img` from the [Releases](../../releases) page. (The module's updater only accepts files
+   whose names start with `LXRE`, so the file keeps that name.)
 2. Copy it to the top folder of a FAT32 SD card and delete any other `LXRE*.img` files from the card.
 3. With the module off, insert the card, then **press and hold the encoder** (the menu knob next to the display)
    while switching the power on. Keep holding until the updater screen appears.
-4. Wait for the success message. The module restarts with the new firmware.
+4. Wait for the success message. The module restarts with Golem.
 
 **Going back:** flash the official 1.51 file from Erica Synths the same way. The updater (bootloader) is never
 changed by an update, so you can always return.
 
 ## Notes
-- CPU: the module now computes one extra hi-hat voice and up to two effects. Heavy settings on both FX buses at
-  once are the most demanding case; if you hear crackles, turn FX B off.
+- CPU: Golem computes one extra hi-hat voice and up to two effects. Heavy settings on both FX buses at once are
+  the most demanding case; if you hear crackles, turn FX B off.
 - Build: same as the official firmware (see below). Tested with Arm GNU Toolchain GCC 15.
 - Source changes are marked `MODIFIED` in the code.
 

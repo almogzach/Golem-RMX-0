@@ -8,6 +8,7 @@
  */
 
 #include "menu/menu.h"
+#include "menu/randomizer.h"	// MODIFIED: parameter randomizer
 #include "lcd.h"
 #include <string.h>
 #include <stdlib.h>
@@ -268,6 +269,11 @@ const Name valueNames[NUM_NAMES] =
 		{SHORT_P3, CAT_FXB, LONG_P3},				/*TEXT_FXB_P3*/
 		{SHORT_P4, CAT_FXB, LONG_P4},				/*TEXT_FXB_P4*/
 		{SHORT_CHOKE, CAT_VOICE, LONG_CHOKE},		/*TEXT_HH7_CHOKE*/	// MODIFIED: voice 7
+		{SHORT_AMNT, CAT_RND, LONG_AMOUNT},		/*TEXT_RND_AMOUNT*/	// MODIFIED: randomizer
+		{SHORT_RND_TARGET, CAT_RND, LONG_RND_TARGET},	/*TEXT_RND_TARGET*/
+		{SHORT_RND_GO, CAT_RND, LONG_RND_GO},		/*TEXT_RND_GO*/
+		{SHORT_RND_UNDO, CAT_RND, LONG_RND_UNDO},	/*TEXT_RND_UNDO*/
+		{SHORT_MORPH_VOICE, CAT_SOUND, LONG_MORPH_VOICE},	/*TEXT_MORPH_VOICE*/	// MODIFIED
 
 
 
@@ -651,6 +657,13 @@ const enum Datatypes PROGMEM parameter_dtypes[NUM_PARAMS] = {
 	    /*PAR_TRACK_ROTATION*/  DTYPE_1B16,  //**PATROT this is not shown in menu, but if it were it would really be 0 to 15
 		/*PAR_STEP_FLAM*/ 		DTYPE_MENU | (MENU_STEP_FLAM<<8),							//251
 		/*PAR_STEP_SHIFT*/		DTYPE_MENU | (MENU_STEP_SHIFT<<8),
+
+		// MODIFIED: parameter randomizer
+		/*PAR_RAND_AMOUNT*/		DTYPE_0B100,
+		/*PAR_RAND_TARGET*/		DTYPE_MENU | (MENU_RND_TARGET<<8),
+		/*PAR_RAND_GO*/			DTYPE_MENU | (MENU_RND_ACT<<8),
+		/*PAR_RAND_UNDO*/		DTYPE_MENU | (MENU_RND_ACT<<8),
+		/*PAR_MORPH_VOICE*/		DTYPE_MENU | (MENU_MORPH_VOICE<<8),	// MODIFIED
 	    /*PAR_BPM*/ 			DTYPE_0B255,							//251
 	    /*PAR_MIDI_CHAN_1*/ 	DTYPE_1B16,
 	    /*PAR_MIDI_CHAN_2*/ 	DTYPE_1B16,
@@ -876,6 +889,8 @@ void menu_init()
 	//frontPanel_sendData(SEQ_CC,SEQ_ROLL_RATE,8); //value is initialized in cortex firmware
 
 	activeParameters[PAR_BPM] = 120;
+
+	randomizer_init();	// MODIFIED: parameter randomizer defaults
 
 
 	// todo I tried to move everything below here to main.c before the call
@@ -2834,6 +2849,15 @@ static uint8_t getMaxEntriesForMenu(uint8_t menuId)
 	case MENU_FXB:	// MODIFIED: FX bus B
 		return fxbNames[0][0];
 
+	case MENU_RND_TARGET:	// MODIFIED: randomizer
+		return rndTargetNames[0][0];
+
+	case MENU_RND_ACT:		// MODIFIED: randomizer
+		return rndActNames[0][0];
+
+	case MENU_MORPH_VOICE:	// MODIFIED: morph voice select
+		return morphVoiceNames[0][0];
+
 	case MENU_DIST:
 		return distNames[0][0];
 
@@ -2864,6 +2888,12 @@ static uint8_t getMaxEntriesForMenu(uint8_t menuId)
 	default:
 		return 0;
 	}
+}
+
+// MODIFIED: number of entries of a menu, for the parameter randomizer
+uint8_t menu_getMaxEntriesForMenu(uint8_t menuId)
+{
+	return getMaxEntriesForMenu(menuId);
 }
 
 // given a menu id, and a value returns the name from PROGMEM
@@ -2942,6 +2972,18 @@ static void getMenuItemNameForValue(const uint8_t menuId, const uint8_t curParmV
 
 	case MENU_FXB:	// MODIFIED: FX bus B
 		p=fxbNames[curParmVal+1];
+		break;
+
+	case MENU_RND_TARGET:	// MODIFIED: randomizer
+		p=rndTargetNames[curParmVal+1];
+		break;
+
+	case MENU_RND_ACT:		// MODIFIED: randomizer
+		p=rndActNames[curParmVal+1];
+		break;
+
+	case MENU_MORPH_VOICE:	// MODIFIED: morph voice select
+		p=morphVoiceNames[curParmVal+1];
 		break;
 
 	case MENU_DIST:
@@ -3525,11 +3567,16 @@ void menu_switchSubPage(uint8_t subPageNr, uint8_t toggle)
 		// MODIFIED: FX page cycles bus A screen 1 -> bus A screen 2 -> bus B screen 1 -> bus B screen 2 -> bus A
 		if((activeParameter < 4) && has2ndPage(activePage)) {
 			activeParameter = 4;
-		} else if(activePage != FX_BUS_B_SUBPAGE) {
-			activePage = FX_BUS_B_SUBPAGE;
+		} else if(activePage == FX_BUS_B_SUBPAGE) {
+			// MODIFIED: then the randomizer page, aimed at the voice being edited
+			activePage = RANDOM_SUBPAGE;
+			activeParameter = 0;
+			activeParameters[PAR_RAND_TARGET] = menu_getActiveVoice() < RANDOMIZER_TARGET_KIT ? menu_getActiveVoice() : RANDOMIZER_TARGET_KIT;
+		} else if(activePage == RANDOM_SUBPAGE) {
+			activePage = fxBus.fxType;
 			activeParameter = 0;
 		} else {
-			activePage = fxBus.fxType;
+			activePage = FX_BUS_B_SUBPAGE;
 			activeParameter = 0;
 		}
 	} else if((toggle) && (subPageNr == activePage)) { // toggle only
@@ -3655,9 +3702,9 @@ void menu_switchPage(uint8_t pageNr)
 
 	case FX_MODE_PAGE:
 		// MODIFIED: if bus B is showing, toggle from bus B instead of jumping back to bus A
-		if((menu_activePage == FX_MODE_PAGE) && (menu_getSubPage() == FX_BUS_B_SUBPAGE))
+		if((menu_activePage == FX_MODE_PAGE) && ((menu_getSubPage() == FX_BUS_B_SUBPAGE) || (menu_getSubPage() == RANDOM_SUBPAGE)))
 		{
-			menu_switchSubPage(FX_BUS_B_SUBPAGE, 1 );
+			menu_switchSubPage(menu_getSubPage(), 1 );
 		}
 		else
 		{
@@ -3839,6 +3886,30 @@ void menu_parseGlobalParam(uint16_t paramNr, uint8_t value)
 {
 	switch(paramNr)
 	{
+	// MODIFIED: parameter randomizer. "go!" runs it and the control returns to "---",
+	// so every further turn of the knob rolls a new variation.
+	case PAR_RAND_GO:
+		if(value)
+		{
+			activeParameters[PAR_RAND_GO] = 0;
+			randomizer_run(activeParameters[PAR_RAND_TARGET], activeParameters[PAR_RAND_AMOUNT]);
+		}
+		break;
+
+	case PAR_RAND_UNDO:
+		if(value)
+		{
+			activeParameters[PAR_RAND_UNDO] = 0;
+			randomizer_undo();
+		}
+		break;
+
+	// MODIFIED: morph voice changed: re-send the whole kit so voices that are no
+	// longer morphed go back to their own sound and the selected one morphs
+	case PAR_MORPH_VOICE:
+		preset_morph(preset_morphValue, 1);
+		break;
+
 
 	// midi mode is not used anymore
 	//case PAR_MIDI_MODE:

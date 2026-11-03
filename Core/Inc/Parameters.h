@@ -484,6 +484,15 @@ enum ParamEnums
 	PAR_STEP_FLAM,
 	PAR_STEP_SHIFT,
 
+	// MODIFIED: parameter randomizer (menu only, not saved)
+	PAR_RAND_AMOUNT,
+	PAR_RAND_TARGET,
+	PAR_RAND_GO,
+	PAR_RAND_UNDO,
+
+	// MODIFIED: morph only one voice (0 = all voices, 1..7 = voice 1..7). Menu only, not saved.
+	PAR_MORPH_VOICE,
+
 	
 	//#########################################
 	//######## Global Parameters ##############

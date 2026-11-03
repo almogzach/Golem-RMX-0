@@ -1651,7 +1651,7 @@ void midiParser_ccHandler(MidiMsg msg, uint8_t updateOriginalValue, uint8_t isFl
 				fxBus.fxType = value.itg;
 				FxBus_updateParameter();
 				//change visible parameters to selected FX type
-				if((menu_activePage == FX_MODE_PAGE) && (menu_getSubPage() != FX_BUS_B_SUBPAGE)) // MODIFIED: stay on bus B page
+				if((menu_activePage == FX_MODE_PAGE) && (menu_getSubPage() != FX_BUS_B_SUBPAGE) && (menu_getSubPage() != RANDOM_SUBPAGE)) // MODIFIED: stay on bus B / random page
 				{
 					if(menu_getSubPage() != fxBus.fxType)
 						menu_switchSubPage(fxBus.fxType, 1 );

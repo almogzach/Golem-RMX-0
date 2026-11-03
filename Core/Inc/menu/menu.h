@@ -30,6 +30,8 @@
 #define NUM_SUB_PAGES 8	// a maximum of 8 subpages 
 // MODIFIED: FX page subpage that shows FX bus B (bus A uses subpage = its FX type, 0..5)
 #define FX_BUS_B_SUBPAGE 6
+// MODIFIED: FX page subpage with the parameter randomizer
+#define RANDOM_SUBPAGE 7
 #define MASK_PARAMETER 0x07
 
 #define MASK_PAGE 0xf8
@@ -290,6 +292,11 @@ enum NamesEnum
 	TEXT_FXB_P3,
 	TEXT_FXB_P4,
 	TEXT_HH7_CHOKE,		// MODIFIED: voice 7 choke on/off
+	TEXT_RND_AMOUNT,	// MODIFIED: randomizer
+	TEXT_RND_TARGET,
+	TEXT_RND_GO,
+	TEXT_RND_UNDO,
+	TEXT_MORPH_VOICE,	// MODIFIED: morph voice select
 
 	NUM_NAMES
 };
@@ -404,6 +411,10 @@ enum shortNamesEnum
 	SHORT_CV,
 	SHORT_MORPH_TARGET,
 	SHORT_CHOKE,		// MODIFIED: voice 7 choke
+	SHORT_RND_TARGET,	// MODIFIED: randomizer
+	SHORT_RND_GO,
+	SHORT_RND_UNDO,
+	SHORT_MORPH_VOICE,	// MODIFIED: morph voice select
 
 	
 };
@@ -441,7 +452,8 @@ enum catNamesEnum
 	CAT_CLOCK,
 	CAT_FX,
 	CAT_MOD,
-	CAT_FXB		// MODIFIED: FX bus B
+	CAT_FXB,	// MODIFIED: FX bus B
+	CAT_RND		// MODIFIED: randomizer
 };
 //-----------------------------------------------------------------
 // these must correspond with longNames in MenuText.h
@@ -539,7 +551,11 @@ enum longNamesEnum
 	LONG_1VOCT,
 	LONG_CV,
 	LONG_MORPH_TARGET,
-	LONG_CHOKE		// MODIFIED: voice 7 choke
+	LONG_CHOKE,		// MODIFIED: voice 7 choke
+	LONG_RND_TARGET,	// MODIFIED: randomizer
+	LONG_RND_GO,
+	LONG_RND_UNDO,
+	LONG_MORPH_VOICE	// MODIFIED: morph voice select
 	
 };
 
@@ -674,6 +690,8 @@ void menu_showSdError(uint8_t res);
 //-----------------------------------------------------------------
 /** forces a complete repaint of the display*/
 void menu_repaintAll();
+// MODIFIED: number of entries of a menu (used by the parameter randomizer)
+uint8_t menu_getMaxEntriesForMenu(uint8_t menuId);
 //-----------------------------------------------------------------
 void menu_debugPrint(char* c);
 //-----------------------------------------------------------------

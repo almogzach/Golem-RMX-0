@@ -26,7 +26,7 @@
 
 // The CMake build passes FIRMWARE_VERSION from project(VERSION); this is the fallback.
 #ifndef FIRMWARE_VERSION
-#define FIRMWARE_VERSION "1.51.1"
+#define FIRMWARE_VERSION "1.51.3"
 #endif
 //#define f_unmount(path) f_mount(0, path, 0)
 
@@ -238,13 +238,12 @@ int main(void)
 
 	//print boot up message
 lcd_clear();
-lcd_string("Sonic Potions");
+// MODIFIED firmware "Golem": the start-up screen marks it as modified, as required by NOTICE.md
+lcd_string("GOLEM v");
+lcd_string(FIRMWARE_VERSION);
 //goto 2nd line
 lcd_setcursor(0,2);
-// MODIFIED firmware (FX bus B): marked as required by NOTICE.md
-lcd_string("LXR2 V");
-lcd_string(FIRMWARE_VERSION);
-lcd_string(" mod");
+lcd_string("LXR firmware mod");
 
 lcd_showSplash();
 

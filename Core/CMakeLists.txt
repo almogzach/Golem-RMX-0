@@ -50,6 +50,7 @@ add_library(lxr_ui OBJECT
     Src/Parameters.c
     Src/menu/Cc2Text.c
     Src/menu/menu.c
+    Src/menu/randomizer.c
     Src/menu/screensaver.c
 )
 
