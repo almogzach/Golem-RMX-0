@@ -281,6 +281,49 @@ enum NamesEnum
 	TEXT_1VOCT,
 	TEXT_CV_SAVE,
 	TEXT_MORPH_TARGET,
+#if LXR0_MIDI
+	// lxr-0: OP HH as MIDI in, per-voice MIDI channels and notes on the module's global page
+	TEXT_LXR0_OPHH_MIDI,
+	TEXT_LXR0_CHAN_DRUM1,
+	TEXT_LXR0_CHAN_DRUM2,
+	TEXT_LXR0_CHAN_DRUM3,
+	TEXT_LXR0_CHAN_SNARE,
+	TEXT_LXR0_CHAN_CLPCYM,
+	TEXT_LXR0_CHAN_CLHH,
+	TEXT_LXR0_CHAN_OPHH,
+	TEXT_LXR0_NOTE_DRUM1,
+	TEXT_LXR0_NOTE_DRUM2,
+	TEXT_LXR0_NOTE_DRUM3,
+	TEXT_LXR0_NOTE_SNARE,
+	TEXT_LXR0_NOTE_CLPCYM,
+	TEXT_LXR0_NOTE_CLHH,
+	TEXT_LXR0_NOTE_OPHH,
+#endif
+#if LXR0_REVERB
+	// lxr-0: global reverb bus
+	TEXT_LXR0_VERB_SEND,
+	TEXT_LXR0_VERB_AMOUNT,
+	TEXT_LXR0_VERB_OUT,
+	TEXT_LXR0_VERB_PREDELAY,
+	TEXT_LXR0_VERB_DECAY,
+	TEXT_LXR0_VERB_TONE,
+	TEXT_LXR0_VERB_REFLECTION,
+#endif
+#if LXR0_SAMPLES
+	TEXT_LXR0_TRIM_START,
+	TEXT_LXR0_TRIM_END,
+#endif
+#if LXR0_LINK
+	// lxr-0: voice links, on the drum transient page
+	TEXT_LXR0_LINK_MODE,
+	TEXT_LXR0_LINK_DETUNE,
+	TEXT_LXR0_LINK_WIDTH,
+	TEXT_LXR0_LINK_SYNC,
+	TEXT_LXR0_LINK_ALLOC,
+	TEXT_LXR0_LINK_GLIDE,
+	TEXT_LXR0_LINK_GLIDE_TYPE,
+	TEXT_LXR0_LINK_LEGATO,
+#endif
 
 	// MODIFIED: FX bus B page labels
 	TEXT_FXB_TYPE,
@@ -427,6 +470,39 @@ enum shortNamesEnum
 	SHORT_MORPH_HI,
 	SHORT_MORPH_SRC_CV,
 	SHORT_MORPH_TGT_CV,
+#if LXR0_MIDI
+	SHORT_LXR0_CH1,
+	SHORT_LXR0_CH2,
+	SHORT_LXR0_CH3,
+	SHORT_LXR0_CH4,
+	SHORT_LXR0_CH5,
+	SHORT_LXR0_CH6,
+	SHORT_LXR0_CH7,
+	SHORT_LXR0_NT1,
+	SHORT_LXR0_NT2,
+	SHORT_LXR0_NT3,
+	SHORT_LXR0_NT4,
+	SHORT_LXR0_NT5,
+	SHORT_LXR0_NT6,
+	SHORT_LXR0_NT7,
+#endif
+#if LXR0_REVERB
+	SHORT_LXR0_REV,
+#endif
+#if LXR0_SAMPLES
+	SHORT_LXR0_TRIM_START,
+	SHORT_LXR0_TRIM_END,
+#endif
+#if LXR0_LINK
+	SHORT_LXR0_LINK_MODE,
+	SHORT_LXR0_LINK_DETUNE,
+	SHORT_LXR0_LINK_WIDTH,
+	SHORT_LXR0_LINK_SYNC,
+	SHORT_LXR0_LINK_ALLOC,
+	SHORT_LXR0_LINK_GLIDE,
+	SHORT_LXR0_LINK_GLIDE_TYPE,
+	SHORT_LXR0_LINK_LEGATO,
+#endif
 
 	
 };
@@ -465,7 +541,26 @@ enum catNamesEnum
 	CAT_FX,
 	CAT_MOD,
 	CAT_FXB,	// MODIFIED: FX bus B
-	CAT_RND		// MODIFIED: randomizer
+	CAT_RND,		// MODIFIED: randomizer
+#if LXR0_MIDI
+	CAT_LXR0_DRUM1,
+	CAT_LXR0_DRUM2,
+	CAT_LXR0_DRUM3,
+	CAT_LXR0_SNARE,
+	CAT_LXR0_CLPCYM,
+	CAT_LXR0_CLHH,
+	CAT_LXR0_OPHH,
+#endif
+#if LXR0_REVERB
+	CAT_LXR0_REVERB,
+#endif
+#if LXR0_SAMPLES
+	CAT_LXR0_TRIM,
+#endif
+#if LXR0_LINK
+	CAT_LXR0_LINK,
+	CAT_LXR0_GLIDE, // glide and legato: per drum, not part of the link
+#endif
 };
 //-----------------------------------------------------------------
 // these must correspond with longNames in MenuText.h
@@ -573,7 +668,27 @@ enum longNamesEnum
 	LONG_MORPH_LO,
 	LONG_MORPH_HI,
 	LONG_MORPH_SRC_CV,
-	LONG_MORPH_TGT_CV
+	LONG_MORPH_TGT_CV,
+#if LXR0_MIDI
+	LONG_LXR0_MIDI_IN,
+#endif
+#if LXR0_REVERB
+	LONG_LXR0_SEND,
+#endif
+#if LXR0_SAMPLES
+	LONG_LXR0_TRIM_START,
+	LONG_LXR0_TRIM_END,
+#endif
+#if LXR0_LINK
+	LONG_LXR0_LINK_MODE,
+	LONG_LXR0_LINK_DETUNE,
+	LONG_LXR0_LINK_WIDTH,
+	LONG_LXR0_LINK_SYNC,
+	LONG_LXR0_LINK_ALLOC,
+	LONG_LXR0_LINK_GLIDE,
+	LONG_LXR0_LINK_GLIDE_TYPE,
+	LONG_LXR0_LINK_LEGATO,
+#endif
 	
 };
 
@@ -589,6 +704,9 @@ enum loadSaveEnum
 	//SAVE_TYPE_ALL,			// all global settings, kit data and pattern data
 	SAVE_TYPE_GLO,
 	//SAVE_TYPE_SAMPLES,
+#if LXR0_SAMPLES
+	SAVE_TYPE_SAMPLES,	// lxr-0: load page only, installs from the SD card
+#endif
 	NUM_SAVE_TYPES
 };
 
@@ -734,6 +852,16 @@ void menu_init();
 //-----------------------------------------------------------------
 /** takes the values received from the encoder and translates it to menu changes*/
 void menu_parseEncoder(int8_t inc, uint8_t button);
+void menu_lxr0RedrawScreen(void); // lxr-0: after writing to the LCD directly
+#if LXR0_RESTART
+void menu_lxr0RestartOpen(void);
+#if LXR0_LINK
+// lxr-0: a voice link just formed: show the lead drum's link settings
+void menu_lxr0OpenLink(uint8_t voice);
+#endif
+void menu_lxr0RestartClose(void);
+uint8_t menu_lxr0RestartIsOpen(void);
+#endif
 //-----------------------------------------------------------------
 void menu_switchPage(uint8_t pageNr);
 //-----------------------------------------------------------------

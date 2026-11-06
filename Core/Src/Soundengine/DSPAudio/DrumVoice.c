@@ -23,6 +23,7 @@
 #include "Soundengine/DSPAudio/modulationNode.h"
 #include "Soundengine/MIDI/MidiVoiceControl.h"
 #include "IO/adcPots.h"
+#include "Soundengine/DSPAudio/lxr0_declick.h"
 
 INDTCM static float ampSmoothValue = 0.1f;
 //---------------------------------------------------
@@ -88,6 +89,9 @@ void initDrumVoice()
 		voiceArray[i].volumeMod = 1;
 
 		voiceArray[i].osc.freq = 440;
+#if LXR0_SAMPLES
+		osc_setSampleTrim(&voiceArray[i].osc, i);
+#endif
 		voiceArray[i].osc.modNodeValue = 1;
 		voiceArray[i].osc.waveform = TRI+i; //for testing init to tri,saw,rec
 		voiceArray[i].osc.fmMod = 0;
@@ -110,14 +114,27 @@ void initDrumVoice()
 #endif
 		voiceArray[i].decimationCnt = 0;
 		voiceArray[i].decimationRate = 1;
+#if LXR0_LINK
+		voiceArray[i].linkDetune = 1.f;
+		voiceArray[i].linkGain = 1.f;
+		voiceArray[i].linkPan = 0;
+#endif
 
 	}
 }
 //---------------------------------------------------
 void Drum_updatePan(const uint8_t voiceNr)
 {
+#if LXR0_LINK
+	// lxr-0: a link spreads its voices around their own pan
+	int16_t pan = voiceArray[voiceNr].pan + voiceArray[voiceNr].linkPan;
+	pan = pan < 0 ? 0 : pan > 127 ? 127 : pan;
+	voiceArray[voiceNr].triggeredPanL = sqrtf((127-pan)/127.f);
+	voiceArray[voiceNr].triggeredPanR = sqrtf(pan/127.f);
+#else
 	voiceArray[voiceNr].triggeredPanL = sqrtf((127-voiceArray[voiceNr].pan)/127.f);
 	voiceArray[voiceNr].triggeredPanR = sqrtf(voiceArray[voiceNr].pan/127.f);
+#endif
 }
 //---------------------------------------------------
 void Drum_setCv1VOct(const uint8_t voiceNr, float oct)
@@ -131,6 +148,14 @@ void Drum_trigger(const uint8_t voiceNr, const uint8_t vol, const uint8_t note)
 {
 
 	lfo_retrigger(voiceNr);
+
+#if LXR0_DECLICK
+	if(lxr0Declick_arm(voiceNr)) // the new note starts from a closed envelope, as it would from silence
+	{
+		voiceArray[voiceNr].oscVolEg.value = 0;
+		voiceArray[voiceNr].ampFilterInput = 0;
+	}
+#endif
 
 	//update velocity modulation
 #if OLD_LFO_ROUTING
@@ -174,6 +199,8 @@ void Drum_trigger(const uint8_t voiceNr, const uint8_t vol, const uint8_t note)
 		else
 			voiceArray[voiceNr].modOsc.phase = 0;
 
+		OSC_RESTART_SAMPLE(voiceArray[voiceNr].osc); // lxr-0
+		OSC_RESTART_SAMPLE(voiceArray[voiceNr].modOsc);
 	}
 
 	osc_setBaseNote(&voiceArray[voiceNr].osc,note);
@@ -210,6 +237,11 @@ IN_ITCM_RAM void calcDrumVoiceAsync(const uint8_t voiceNr)
 		const float snapVal = SnapEg_calc(&voiceArray[voiceNr].snapEg, voiceArray[voiceNr].transGen.pitch);
 		voiceArray[voiceNr].osc.pitchMod += snapVal*voiceArray[voiceNr].transGen.volume;
 	}
+
+#if LXR0_LINK
+	if(voiceArray[voiceNr].linkDetune != 1.f) // lxr-0: voice link spread
+		voiceArray[voiceNr].osc.pitchMod *= voiceArray[voiceNr].linkDetune;
+#endif
 
 	// fm amount with pitch eg
 	voiceArray[voiceNr].osc.fmMod = voiceArray[voiceNr].fmModAmount * egPitchVal;
@@ -313,11 +345,16 @@ IN_ITCM_RAM void calcDrumVoiceSyncBlock(const uint8_t voiceNr, int16_t* buf, con
 	//channel volume
 	//bufferTool_addGain(buf,voiceArray[voiceNr].combinedVolume  ,size);
 
+#if LXR0_LINK
+	const float volTarget = voiceArray[voiceNr].vol*voiceArray[voiceNr].linkGain; // lxr-0: 1 unless linked
+#else
+	const float volTarget = voiceArray[voiceNr].vol;
+#endif
 	for(int i=0; i< size; i++)
 	{
 #if SMOOTH_MIXER_VOL_PAN_DRIVE
 
-		float mixVol 	= calcOnePole( &voiceArray[voiceNr].MixerPageFilter[0], voiceArray[voiceNr].vol);
+		float mixVol 	= calcOnePole( &voiceArray[voiceNr].MixerPageFilter[0], volTarget);
 		voiceArray[voiceNr].combinedVolume = mixVol ;//* calcOnePole( &voiceArray[voiceNr].FaderVolumeFilter, adc_getFaderVolume(voiceNr));
 #else
 		voiceArray[voiceNr].combinedVolume = voiceArray[voiceNr].vol * calcOnePole( &voiceArray[voiceNr].FaderVolumeFilter, adc_getFaderVolume(voiceNr));

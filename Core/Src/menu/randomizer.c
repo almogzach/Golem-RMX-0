@@ -69,6 +69,13 @@ uint8_t voiceParams_isMorphed(uint16_t paramNr, uint8_t morphTargetKitValid7)
 	// routing and choke always stay as the current kit sets them
 	if((paramNr >= PAR_AUDIO_OUT1) && (paramNr <= PAR_AUDIO_OUT6)) return 0;
 	if((paramNr == PAR_HH7_AUDIO_OUT) || (paramNr == PAR_HH7_CHOKE) || (paramNr == PAR_HH7_VALID)) return 0;
+#if LXR0_REVERB
+	if(paramNr == PAR_LXR0_VERB_ROUTING) return 0;	// GOLEM-RMX-0: reverb output stays put
+#endif
+#if LXR0_LINK
+	// GOLEM-RMX-0: voice link and glide are performance settings, not part of a kit's sound
+	if((paramNr >= PAR_LXR0_LINK_VOICES) && (paramNr <= PAR_LXR0_LINK_LEGATO3)) return 0;
+#endif
 
 	// voice 7 settings: only morph toward a kit that was saved with its own voice 7
 	if((paramNr >= PAR_HH7_COARSE) && (paramNr <= PAR_HH7_CHOKE) && !morphTargetKitValid7) return 0;
@@ -137,6 +144,10 @@ uint8_t randomizer_getBounds(uint16_t paramNr, uint8_t* min, uint8_t* max, uint8
 	if((paramNr >= PAR_FX_TYPE) && (paramNr <= PAR_MORPH_KIT_DEST)) return 0;
 	if((paramNr >= PAR_CV_DEST_1) && (paramNr <= PAR_CV_SRC_18)) return 0;
 	if((paramNr >= PAR_FX2_TYPE) && (paramNr <= PAR_FX2_P4)) return 0;
+#if LXR0_REVERB && LXR0_SAMPLES && LXR0_LINK
+	// GOLEM-RMX-0: reverb bus settings, sample trims (could silence a sample) and voice link/glide
+	if((paramNr >= PAR_LXR0_VERB_AMOUNT) && (paramNr <= PAR_LXR0_LINK_LEGATO3)) return 0;
+#endif
 
 	switch(paramNr)
 	{

@@ -20,6 +20,7 @@
 #include "Soundengine/MIDI/MidiVoiceControl.h"
 #include "IO/adcPots.h"
 #include "Soundengine/FxBus.h"
+#include "Soundengine/DSPAudio/lxr0_declick.h"
 
 INDTCMZ CymbalVoice cymbalVoice;
 //---------------------------------------------------
@@ -67,6 +68,9 @@ void Cymbal_init()
 	cymbalVoice.modOsc2.cvFreq = -1.f;
 
 	cymbalVoice.osc.freq = 440;
+#if LXR0_SAMPLES
+	osc_setSampleTrim(&cymbalVoice.osc, 4);
+#endif
 	cymbalVoice.osc.waveform = 1;
 	cymbalVoice.osc.fmMod = 1;
 	cymbalVoice.osc.midiFreq = 70<<8 | 64;
@@ -102,6 +106,10 @@ void Cymbal_setCv1VOct(float oct)
 void Cymbal_trigger( const uint8_t vel, const uint8_t note)
 {
 	lfo_retrigger(4);
+#if LXR0_DECLICK
+	if(lxr0Declick_arm(4)) // the new note starts from a closed envelope, as it would from silence
+		cymbalVoice.oscVolEg.value = 0;
+#endif
 	//update velocity modulation
 #if OLD_LFO_ROUTING
 	modNode_updateValue(&velocityModulators[4],vel/127.f);
@@ -122,6 +130,9 @@ void Cymbal_trigger( const uint8_t vel, const uint8_t note)
 
 	cymbalVoice.modOsc.phase = 0;
 	cymbalVoice.modOsc2.phase = 0;
+	OSC_RESTART_SAMPLE(cymbalVoice.osc); // lxr-0
+	OSC_RESTART_SAMPLE(cymbalVoice.modOsc);
+	OSC_RESTART_SAMPLE(cymbalVoice.modOsc2);
 
 	osc_setBaseNote(&cymbalVoice.osc,note);
 	osc_setBaseNote(&cymbalVoice.modOsc,note);

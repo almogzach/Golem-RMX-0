@@ -22,6 +22,7 @@
 #define NUM_KIT_SLOTS 128 //64
 
 #include "stm32f7xx_hal.h"
+#include "lxr0.h" // lxr-0: feature flags change the parameter list
 
 enum ParamEnums
 {
@@ -438,6 +439,64 @@ enum ParamEnums
 	PAR_HH7_DISTORTION,
 	PAR_HH7_AUDIO_OUT,
 	PAR_HH7_CHOKE, //336
+	// GOLEM-RMX-0: RMX-0 settings follow Golem's, so kits saved on Golem keep their layout.
+	// Kits saved on RMX-0 1.0 (RMX-0 settings right after PAR_CV_SRC_18) are moved into place on load.
+#if LXR0_REVERB
+	// lxr-0: global reverb bus, saved at the end of the kit file (stock firmware ignores the tail,
+	// older kits load these as 0 and get defaults). Read by the engine every block, not sent as CC.
+	PAR_LXR0_VERB_SEND1,	// post-fader sends, voices 1-6 (both hats share 6)
+	PAR_LXR0_VERB_SEND2,
+	PAR_LXR0_VERB_SEND3,
+	PAR_LXR0_VERB_SEND4,
+	PAR_LXR0_VERB_SEND5,
+	PAR_LXR0_VERB_SEND6,
+	PAR_LXR0_VERB_AMOUNT,	// return level
+	PAR_LXR0_VERB_ROUTING,	// output, as PAR_FX_ROUTING
+	PAR_LXR0_VERB_PREDELAY,	// as the FX bus reverb P1-P4
+	PAR_LXR0_VERB_DECAY,
+	PAR_LXR0_VERB_TONE,
+	PAR_LXR0_VERB_REFLECTION,
+#endif
+#if LXR0_SAMPLES
+	// lxr-0: how much a voice's main oscillator cuts off its sample, in 1/255 of the sample. 0 is no trim,
+	// so older kits, which load these as 0, play whole samples. Read by lxr0_sampleOsc.c, not sent as CCs.
+	PAR_LXR0_TRIM_START1,
+	PAR_LXR0_TRIM_START2,
+	PAR_LXR0_TRIM_START3,
+	PAR_LXR0_TRIM_START4,
+	PAR_LXR0_TRIM_START5,
+	PAR_LXR0_TRIM_START6,
+	PAR_LXR0_TRIM_END1,
+	PAR_LXR0_TRIM_END2,
+	PAR_LXR0_TRIM_END3,
+	PAR_LXR0_TRIM_END4,
+	PAR_LXR0_TRIM_END5,
+	PAR_LXR0_TRIM_END6,
+#endif
+#if LXR0_LINK
+	// lxr-0: voice links. All 0 is unlinked, so older kits load unlinked. Read by lxr0_voiceLink.c.
+	PAR_LXR0_LINK_VOICES,	// bit 0-2: drums 1-3. A link needs 2 or 3 of them
+	PAR_LXR0_LINK_MODE,		// 0 off, 1 unison, 2 chord, 3 poly
+	PAR_LXR0_LINK_DETUNE,	// unison spread
+	PAR_LXR0_LINK_WIDTH,	// unison and chord pan spread
+	PAR_LXR0_LINK_SYNC,		// poly: every linked voice follows the lowest one's sound
+	PAR_LXR0_LINK_ALLOC,	// poly, when all voices are busy: 0 replaces the oldest note, 1 the highest
+	PAR_LXR0_LINK_GLIDE,	// 0.5.4: pitch glide, 0 off. The group in unison and chord, drum 1 when unlinked
+	PAR_LXR0_LINK_GLIDE_TYPE,	// 0.5.6: 0 linear constant rate, 1 linear constant time, 2 exponential
+	// 0.5.7: glide is per drum. The two above are drum 1's; a linked group plays its lead's
+	PAR_LXR0_LINK_GLIDE2,
+	PAR_LXR0_LINK_GLIDE3,
+	PAR_LXR0_LINK_GLIDE_TYPE2,
+	PAR_LXR0_LINK_GLIDE_TYPE3,
+	PAR_LXR0_LINK_LEGATO1,	// 0.5.7: a MIDI note while a key is held and the drum sounds changes only its pitch
+	PAR_LXR0_LINK_LEGATO2,
+	PAR_LXR0_LINK_LEGATO3,
+#endif
+#if LXR0_REVERB
+	// GOLEM-RMX-0: voice 7 (Golem's separate open hi-hat) has its own reverb send.
+	// Kits without it get voice 6's send (see lxr0Verb_kitDefaults / the voice 7 migration).
+	PAR_GRMX_VERB_SEND7,
+#endif
 
 
 	//#########################################

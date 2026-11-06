@@ -32,6 +32,7 @@ extern TIM_HandleTypeDef htim2;
 #define USE_SD_CARD 1
 
 #define EURORACK_MODULE 1
+#include "lxr0.h" // lxr-0: feature flags
 #define SEQ_DEFAULT_NOTE 60
 
 void Error_Handler(void);

@@ -20,6 +20,7 @@
 #include "Soundengine/MIDI/MidiVoiceControl.h"
 #include "IO/adcPots.h"
 #include "Soundengine/FxBus.h"
+#include "Soundengine/DSPAudio/lxr0_declick.h"
 
 INDTCMZ HiHatVoice hatVoice;
 // MODIFIED: separate open hi-hat voice (voice 7). Kept in normal RAM so the
@@ -74,6 +75,9 @@ static void hh_init(HiHatVoice* h)
 	h->modOsc2.cvFreq = -1.f;
 
 	h->osc.freq = 440;
+#if LXR0_SAMPLES
+	osc_setSampleTrim(&h->osc, 5);	// GOLEM-RMX-0: both hats use voice 6's sample trims
+#endif
 	h->osc.waveform = 1;
 	h->osc.fmMod = 1;
 	h->osc.midiFreq = 70<<8 | 64;
@@ -119,6 +123,13 @@ void HiHat_setCv1VOct(float oct)
 //---------------------------------------------------
 static void hh_trigger(HiHatVoice* h, uint8_t vel, uint8_t isOpen, const uint8_t note)
 {
+#if LXR0_DECLICK
+	// RMX-0: the new note starts from a closed envelope, as it would from silence.
+	// GOLEM-RMX-0: each hat has its own declick slot (5 = closed, 6 = open / voice 7)
+	if(lxr0Declick_arm(h == &hatVoice2 ? 6 : 5))
+		h->oscVolEg.value = 0;
+#endif
+
 	//update velocity modulation
 #if OLD_LFO_ROUTING
 	modNode_updateValue(&velocityModulators[5],vel/127.f);
@@ -139,6 +150,9 @@ static void hh_trigger(HiHatVoice* h, uint8_t vel, uint8_t isOpen, const uint8_t
 
 	h->modOsc.phase = 0;
 	h->modOsc2.phase = 0;
+	OSC_RESTART_SAMPLE(h->osc); // RMX-0
+	OSC_RESTART_SAMPLE(h->modOsc);
+	OSC_RESTART_SAMPLE(h->modOsc2);
 
 	osc_setBaseNote(&h->osc,note);
 	osc_setBaseNote(&h->modOsc,note);

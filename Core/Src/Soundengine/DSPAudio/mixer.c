@@ -27,6 +27,10 @@
 #include "Soundengine/FxBus.h"
 #include "Soundengine/FxBus2.h"	// MODIFIED: FX bus B
 #include "Soundengine/MIDI/MidiVoiceControl.h"
+#include "Soundengine/DSPAudio/FX/lxr0_reverbBus.h" // lxr-0
+#include "Soundengine/DSPAudio/lxr0_declick.h" // lxr-0
+#include "Soundengine/lxr0_voiceLink.h" // lxr-0
+#include "Soundengine/DSPAudio/lxr0_pan.h"
 
 	uint8_t r2_Available;
 	uint8_t l1_Available;
@@ -66,6 +70,9 @@ void mixer_init()
 
 	FxBus_init();
 	FxBus2_init();	// MODIFIED: FX bus B
+#if LXR0_REVERB
+	lxr0Verb_init(); // lxr-0: global reverb bus
+#endif
 }
 //-----------------------------------------------------------------------
 IN_ITCM_RAM void mixer_decimateBlock(const uint8_t voiceNr, int16_t* buffer)
@@ -578,6 +585,9 @@ IN_ITCM_RAM static inline void mixer_addDataToOutput(uint8_t dest, const float p
 static void __attribute__((noinline)) mixer_calcVoice7Block(int16_t* sampleData, int16_t* outL,int16_t* outR,int16_t* outL2, int16_t* outR2, int16_t *fxBuffer)
 {
 	HiHat2_calcSyncBlock(sampleData,OUTPUT_DMA_SIZE);
+#if LXR0_DECLICK
+	lxr0Declick_process(6, sampleData, OUTPUT_DMA_SIZE); // GOLEM-RMX-0: declick voice 7 too
+#endif
 
 	//decimate voice 7 (own rate, also scaled by the global decimation like the other voices)
 	const float phaseInc = mixer_decimation_rate7*mixer_decimation_rate[6];
@@ -591,11 +601,20 @@ static void __attribute__((noinline)) mixer_calcVoice7Block(int16_t* sampleData,
 		}
 		sampleData[i] = mixer_voice_sample7;
 	}
+#if LXR0_REVERB
+	lxr0Verb_addSend(6, sampleData); // GOLEM-RMX-0: voice 7 reverb send
+#endif
 
 	mixer_addDataToOutput(mixer_audioRouting7, hatVoice2.triggeredPanL, hatVoice2.triggeredPanR, sampleData, outL, outR, outL2, outR2, fxBuffer);
 }
 IN_ITCM_RAM void mixer_calcNextSampleBlock(int16_t* output,int16_t* output2)
 {
+#if LXR0_REVERB
+	lxr0Verb_beginBlock(); // lxr-0: load timer, reverb settings
+#endif
+#if LXR0_LINK
+	lxr0Link_poll(); // lxr-0: voice link settings, before this block's triggers
+#endif
 	voiceControl_processQueue();
 #if !EURORACK_MODULE
 	r2_Available = (switch_r2_GPIO_Port->IDR & switch_r2_Pin)>0;
@@ -630,6 +649,12 @@ IN_ITCM_RAM void mixer_calcNextSampleBlock(int16_t* output,int16_t* output2)
 
 	//process CV
 	CV_process();
+#if LXR0_LINK
+	lxr0Link_glide(); // lxr-0: after this block's triggers and CV, before the drums' pitch
+#endif
+#if LXR0_PAN
+	lxr0Pan_update(); // lxr-0 0.5.8: pan follows its value while a note sounds
+#endif
 
 	//--- Calc async -----
 	calcDrumVoiceAsync(0);
@@ -661,8 +686,14 @@ IN_ITCM_RAM void mixer_calcNextSampleBlock(int16_t* output,int16_t* output2)
 
 	//calc voice 1
 	calcDrumVoiceSyncBlock(0, sampleData,OUTPUT_DMA_SIZE);
+#if LXR0_DECLICK
+	lxr0Declick_process(0, sampleData, OUTPUT_DMA_SIZE); // lxr-0: fade out what a retrigger cut
+#endif
 	//decimate voice
 	mixer_decimateBlock(0,sampleData);
+#if LXR0_REVERB
+	lxr0Verb_addSend(0, sampleData); // lxr-0: post-fader reverb send
+#endif
 	//copy to selected dma buffer
 #if USE_SQRT_LUT
 	mixer_addDataToOutput(mixer_audioRouting[0],squareRootLut[127-voiceArray[0].pan] ,squareRootLut[voiceArray[0].pan], sampleData,&output[pos],&output[pos+1],&output2[pos],&output2[pos+1], fxBusData);
@@ -686,8 +717,14 @@ IN_ITCM_RAM void mixer_calcNextSampleBlock(int16_t* output,int16_t* output2)
 
 	//calc voice 2
 	calcDrumVoiceSyncBlock(1, sampleData,OUTPUT_DMA_SIZE);
+#if LXR0_DECLICK
+	lxr0Declick_process(1, sampleData, OUTPUT_DMA_SIZE); // lxr-0: fade out what a retrigger cut
+#endif
 	//decimate voice
 	mixer_decimateBlock(1,sampleData);
+#if LXR0_REVERB
+	lxr0Verb_addSend(1, sampleData); // lxr-0: post-fader reverb send
+#endif
 	//copy to selected dma buffer
 #if USE_SQRT_LUT
 	mixer_addDataToOutput(mixer_audioRouting[1],squareRootLut[127-voiceArray[1].pan] ,squareRootLut[voiceArray[1].pan], sampleData,&output[pos],&output[pos+1],&output2[pos],&output2[pos+1], fxBusData);
@@ -706,8 +743,14 @@ IN_ITCM_RAM void mixer_calcNextSampleBlock(int16_t* output,int16_t* output2)
 #endif
 	//calc voice 3
 	calcDrumVoiceSyncBlock(2, sampleData,OUTPUT_DMA_SIZE);
+#if LXR0_DECLICK
+	lxr0Declick_process(2, sampleData, OUTPUT_DMA_SIZE); // lxr-0: fade out what a retrigger cut
+#endif
 	//decimate voice
 	mixer_decimateBlock(2,sampleData);
+#if LXR0_REVERB
+	lxr0Verb_addSend(2, sampleData); // lxr-0: post-fader reverb send
+#endif
 	//copy to selected dma buffer
 #if USE_SQRT_LUT
 	mixer_addDataToOutput(mixer_audioRouting[2],squareRootLut[127-voiceArray[2].pan] ,squareRootLut[voiceArray[2].pan], sampleData,&output[pos],&output[pos+1],&output2[pos],&output2[pos+1], fxBusData);
@@ -725,8 +768,14 @@ IN_ITCM_RAM void mixer_calcNextSampleBlock(int16_t* output,int16_t* output2)
 #endif
 	//calc snare
 	Snare_calcSyncBlock(sampleData,OUTPUT_DMA_SIZE);
+#if LXR0_DECLICK
+	lxr0Declick_process(3, sampleData, OUTPUT_DMA_SIZE); // lxr-0: fade out what a retrigger cut
+#endif
 	//decimate voice
 	mixer_decimateBlock(3,sampleData);
+#if LXR0_REVERB
+	lxr0Verb_addSend(3, sampleData); // lxr-0: post-fader reverb send
+#endif
 	//copy to selected dma buffer
 #if USE_SQRT_LUT
 	mixer_addDataToOutput(mixer_audioRouting[3],squareRootLut[127-snareVoice.pan], squareRootLut[snareVoice.pan], sampleData,&output[pos],&output[pos+1],&output2[pos],&output2[pos+1], fxBusData);
@@ -740,8 +789,14 @@ IN_ITCM_RAM void mixer_calcNextSampleBlock(int16_t* output,int16_t* output2)
 #endif
 	//calc cymbal
 	Cymbal_calcSyncBlock(sampleData,OUTPUT_DMA_SIZE);
+#if LXR0_DECLICK
+	lxr0Declick_process(4, sampleData, OUTPUT_DMA_SIZE); // lxr-0: fade out what a retrigger cut
+#endif
 	//decimate voice
 	mixer_decimateBlock(4,sampleData);
+#if LXR0_REVERB
+	lxr0Verb_addSend(4, sampleData); // lxr-0: post-fader reverb send
+#endif
 	//copy to selected dma buffer
 #if USE_SQRT_LUT
 	mixer_addDataToOutput(mixer_audioRouting[4],squareRootLut[127-cymbalVoice.pan],	squareRootLut[cymbalVoice.pan], sampleData,&output[pos],&output[pos+1],&output2[pos],&output2[pos+1], fxBusData);
@@ -756,8 +811,14 @@ IN_ITCM_RAM void mixer_calcNextSampleBlock(int16_t* output,int16_t* output2)
 
 	//calc HiHat
 	HiHat_calcSyncBlock(sampleData,OUTPUT_DMA_SIZE);
+#if LXR0_DECLICK
+	lxr0Declick_process(5, sampleData, OUTPUT_DMA_SIZE); // lxr-0: fade out what a retrigger cut
+#endif
 	//decimate voice
 	mixer_decimateBlock(5,sampleData);
+#if LXR0_REVERB
+	lxr0Verb_addSend(5, sampleData); // lxr-0: post-fader reverb send
+#endif
 	//copy to selected dma buffer
 #if USE_SQRT_LUT
 	mixer_addDataToOutput(mixer_audioRouting[5],squareRootLut[127-hatVoice.pan],squareRootLut[hatVoice.pan], sampleData,&output[pos],&output[pos+1],&output2[pos],&output2[pos+1], fxBusData);
@@ -776,6 +837,9 @@ IN_ITCM_RAM void mixer_calcNextSampleBlock(int16_t* output,int16_t* output2)
 	FxBus_process(fxBusData,  &output[pos],&output[pos+1],&output2[pos],&output2[pos+1], OUTPUT_DMA_SIZE);
 	FxBus2_process(fxBus2Data, &output[pos],&output[pos+1],&output2[pos],&output2[pos+1], OUTPUT_DMA_SIZE);	// MODIFIED: FX bus B
 	mixer_fxBus2Data = NULL;
+#if LXR0_REVERB
+	lxr0Verb_endBlock(&output[pos], &output2[pos]); // lxr-0: global reverb bus, load guard
+#endif
 /*
 	if(activeParameters[UNUSED_PAR_GLO_SAT])
 	{

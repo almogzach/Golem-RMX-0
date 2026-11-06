@@ -31,6 +31,7 @@
 #include "Soundengine/FxBus.h"
 #include "Soundengine/FxBus2.h"	// MODIFIED: FX bus B
 #include "IO/DIO.h"
+#include "Soundengine/lxr0_voiceLink.h"
 
 static uint16_t midiParser_activeNrpnNumber = 0;
 
@@ -1707,14 +1708,13 @@ void midiParser_ccHandler(MidiMsg msg, uint8_t updateOriginalValue, uint8_t isFl
 			case CC2_1VOCT_1:
 			case CC2_1VOCT_2:
 			case CC2_1VOCT_3:
-				if(isFloatModulator)
-				{
-					Drum_setCv1VOct(msg.data1-CC2_1VOCT_1, floatCvToFreq(value.flt));
-				}
-				else
-				{
-					Drum_setCv1VOct(msg.data1-CC2_1VOCT_1, floatCvToFreq(-1.0));
-				}
+			{
+				const float freq = floatCvToFreq(isFloatModulator ? value.flt : -1.0f);
+#if LXR0_LINK
+				if(!lxr0Link_cv(msg.data1-CC2_1VOCT_1, freq)) // lxr-0: a link takes the lead drum's CV
+#endif
+					Drum_setCv1VOct(msg.data1-CC2_1VOCT_1, freq);
+			}
 				break;
 			case CC2_1VOCT_4:
 				if(isFloatModulator)
@@ -1851,6 +1851,29 @@ static void midiParser_noteOn(uint8_t voice, uint8_t note, uint8_t vel, uint8_t 
 
 	}
 
+}
+#elif LXR0_MIDI
+// lxr-0: the module has no sequencer, so no record or echo. Note matching as above.
+static uint8_t lxr0NoteChan; // 0.5.7: the channel of the note being parsed, for held keys and legato
+static void midiParser_noteOn(uint8_t voice, uint8_t note, uint8_t vel, uint8_t do_rec)
+{
+	(void)do_rec;
+#if LXR0_LINK
+	const uint8_t key = note;
+#endif
+	if(activeParameters[PAR_MIDI_NOTE1 + voice] != 0) {
+		// looking for specific note
+		if(note==activeParameters[PAR_MIDI_NOTE1 + voice])
+			note=SEQ_DEFAULT_NOTE; // match found. Play default note
+		else
+			return; // note does not match. Do nothing
+	}
+
+#if LXR0_LINK
+	if(lxr0Link_midiNoteOn(voice, lxr0NoteChan, key, note, vel)) // a held key: legato, or a linked drum's poly note
+		return;
+#endif
+	voiceControl_noteOn(voice,note,vel);
 }
 #endif
 //------------------------------------------------------
@@ -1992,18 +2015,35 @@ void midiParser_parseMidiMessage(MidiMsg msg)
 		{ // channel specific message
 		const uint8_t msgonly =msg.status & 0xF0;
 		const uint8_t chanonly=msg.status & 0x0F;
-#if !EURORACK_MODULE
+#if !EURORACK_MODULE || LXR0_MIDI
 		if((msgonly & 0xE0) == 0x80) {
 			// note on or note off message (one of these two only)
 			if(midiParser_txRxFilter & MIDI_FILTER_NOTES) {
 				int8_t v, q=-1;
+#if LXR0_MIDI
+				lxr0NoteChan = chanonly;
+#if LXR0_LINK
+				// lxr-0 0.5.7: a note-off releases its key on any drum it is held on, whatever is selected now
+				if(!(msgonly==NOTE_ON && msg.data2))
+					lxr0Link_midiNoteOff(chanonly, msg.data1);
+#endif
+#endif
 				// if a note message comes in on global channel, then send that note to
 				// the voice that is currently active on the front.
+#if LXR0_MIDI
+				// lxr-0 0.5.2: global channel 0 is off for notes. 0 never reaches the module's channel table, so it
+				// used to stay on its power-on channel 1 and doubled whatever channel 1 already played.
+				if(activeParameters[PAR_MIDI_CHAN_GLOBAL] != 0 && midi_MidiChannels[7]==chanonly) {
+#else
 				if(midi_MidiChannels[7]==chanonly) {
+#endif
 					q=frontParser_activeTrack; // avoid sending it again later if the active track happens to have the same channel set
 											   // (this might not really matter. does sending a note on twice do any harm?)
+#if LXR0_LINK
+					q=lxr0Link_route(q); // lxr-0: a linked drum's notes play its group, through the lead
+#endif
 					if(msgonly==NOTE_ON && msg.data2) {
-						midiParser_noteOn(frontParser_activeTrack, msg.data1, msg.data2, 1);
+						midiParser_noteOn(q, msg.data1, msg.data2, 1);
 					} else { // NOTE_OFF or zero velocity note
 						//midiParser_noteOff(v, msg.data1, msg.data2);
 					}
@@ -2088,11 +2128,19 @@ void midiParser_handleStatusByte(unsigned char data)
 	}
 }
 //-----------------------------------------------------------
-#if !EURORACK_MODULE
+#if !EURORACK_MODULE || LXR0_MIDI
 // This will build up the midi message and hand it off to
 // parseMidiMessage when it's complete
 void midiParser_parseUartData(unsigned char data)
 {
+#if LXR0_MIDI
+	if(data == LXR0_MIDI_RESYNC)
+	{
+		// bytes were lost: drop the partial message, keep the status for running status
+		parserState = MIDI_STATUS;
+		return;
+	}
+#endif
 
 	if(data&0x80) { // High bit is set -  its either a status or a system message.
 		// regardless of current state, we blindly start a new message without questioning it

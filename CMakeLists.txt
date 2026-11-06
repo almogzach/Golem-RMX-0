@@ -20,10 +20,17 @@ if(NOT CMAKE_TOOLCHAIN_FILE)
 endif()
 
 project(LXR_V2_STM32F765_Eurorack
-    VERSION 1.51.5 # Golem: MODIFIED (FX bus B, separate hats, randomizer, per-voice morph) - not official Erica Synths firmware
-    DESCRIPTION "Golem (LXR firmware mod): unofficial custom firmware for the Erica Synths LXR V2 Eurorack drum module"
+    VERSION 1.0 # Golem-RMX-0: MODIFIED (Golem + RMX-0 by mechanical-dance) - not official Erica Synths firmware
+    DESCRIPTION "Golem-RMX-0 (LXR firmware mod): unofficial custom firmware for the Erica Synths LXR V2 Eurorack drum module"
     LANGUAGES C ASM
 )
+
+# RMX-0: update files are named after the RMX-0 version (Core/Inc/lxr0.h), not Erica's, so a
+# modified build is never mistaken for official firmware (NOTICE.md). The updater needs the LXRE prefix.
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/Core/Inc/lxr0.h" RMX0_VERSION_LINE REGEX "^#define LXR0_VERSION ")
+string(REGEX REPLACE ".*\"([^\"]+)\".*" "\\1" RMX0_VERSION "${RMX0_VERSION_LINE}")
+# Golem-RMX-0: named after this merge's own version (project VERSION above)
+set(RMX0_IMAGE_NAME LXRE_GRMX0_V${PROJECT_VERSION})
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type (Debug or Release)" FORCE)
@@ -82,7 +89,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 
 # Linked at 0x08008000, behind the 32 KB bootloader.
 lxr_firmware_executable(${PROJECT_NAME} LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/STM32F765VGTX_FLASH.ld)
-lxr_add_firmware_outputs(${PROJECT_NAME} IMAGE_MAGIC LXRERIMG IMAGE_NAME LXRE_V2_V${PROJECT_VERSION})
+lxr_add_firmware_outputs(${PROJECT_NAME} IMAGE_MAGIC LXRERIMG IMAGE_NAME ${RMX0_IMAGE_NAME})
 
 # "flash": application only, the bootloader on the device is left alone.
 lxr_add_openocd_flash_target(flash
@@ -148,9 +155,9 @@ if(NOT bootloader)
 endif()
 
 if(bootloader)
-    # LXRE_V2_V<version>_full.hex/.bin: bootloader at 0x08000000 + firmware at 0x08008000.
+    # LXRE_RMX0_V<version>_full.hex/.bin: bootloader at 0x08000000 + firmware at 0x08008000.
     lxr_add_combined_image(full_image
-        OUTPUT_NAME LXRE_V2_V${PROJECT_VERSION}_full
+        OUTPUT_NAME ${RMX0_IMAGE_NAME}_full
         BOOTLOADER ${bootloader}
         APPLICATION ${PROJECT_NAME}
         BOOTLOADER_MAGIC LXRERIMG
@@ -181,7 +188,7 @@ if(TARGET full_image)
     list(APPEND info_depends full_image)  # print after everything else is done
 endif()
 lxr_add_update_info(update_info
-    IMAGE ${CMAKE_CURRENT_BINARY_DIR}/LXRE_V2_V${PROJECT_VERSION}.img
+    IMAGE ${CMAKE_CURRENT_BINARY_DIR}/${RMX0_IMAGE_NAME}.img
     IMAGE_PATTERN LXRE*.img
     DEVICE "module"
     DEPENDS ${info_depends}

@@ -50,6 +50,10 @@
 #define MENU_RND_ACT		31	// MODIFIED: randomizer go / undo
 #define MENU_MORPH_VOICE	32	// MODIFIED: morph voice select
 #define MENU_MORPH_CV		33	// MODIFIED: CV jack for morph kit selection
+#define MENU_LXR0_LINK_MODE		34 // lxr-0
+#define MENU_LXR0_LINK_ALLOC	35 // lxr-0
+#define MENU_LXR0_GLIDE_TYPE	36 // lxr-0
+// GOLEM-RMX-0: RMX-0 menu ids renumbered after Golem's (29-33)
 
 //-----------------------------------------------------------------
 // Shared texts. Reduce mem usage by pooling common text
@@ -72,6 +76,29 @@ const char cvSaveNames[][4] =
 
 	//{"+8"},
 
+};
+//-----------------------------------------------------------------
+// lxr-0: voice links
+const char linkModeNames[][4] =
+{
+	{4},		//number of entries
+	{"off"},
+	{"uni"},
+	{"chd"},
+	{"ply"},
+};
+const char linkAllocNames[][4] =
+{
+	{2},		//number of entries
+	{"old"},
+	{"hi "},
+};
+const char glideTypeNames[][4] =
+{
+	{3},		//number of entries
+	{"lcr"},	// linear constant rate
+	{"lct"},	// linear constant time
+	{"exp"},	// exponential
 };
 //-----------------------------------------------------------------
 const char cvSrcNames[][4] =
@@ -347,7 +374,11 @@ const char retriggerNames[][4]  =
 //-----------------------------------------------------------------
 const char lfoWaveNames[][4]  =
 {
+#if LXR0_LFO
+	{19},		//number of entries
+#else
 	{8},		//number of entries
+#endif
 	{"sin"},
 	{"tri"},
 	{"sup"},
@@ -356,6 +387,19 @@ const char lfoWaveNames[][4]  =
 	{"rnd"},
 	{"xup"},
 	{"xdn"},
+#if LXR0_LFO // lxr-0: lxr0_lfo.c
+	{"nse"},
+	{"xtr"},
+	{"si1"},
+	{"tr1"},
+	{"su1"},
+	{"sd1"},
+	{"sq1"},
+	{"xu1"},
+	{"xd1"},
+	{"xt1"},
+	{"rn1"},
+#endif
 };
 //-----------------------------------------------------------------
 const char rollRateNames[][4]  =
@@ -595,6 +639,39 @@ const char shortNames[][4]  =
 	{"hi"},
 	{"scv"},
 	{"tcv"},
+#if LXR0_MIDI
+	{"t1"},
+	{"t2"},
+	{"t3"},
+	{"t4"},
+	{"t5"},
+	{"t6"},
+	{"t7"},
+	{"n1"},
+	{"n2"},
+	{"n3"},
+	{"n4"},
+	{"n5"},
+	{"n6"},
+	{"n7"},
+#endif
+#if LXR0_REVERB
+	{"rev"},
+#endif
+#if LXR0_SAMPLES
+	{"sta"},
+	{"end"},
+#endif
+#if LXR0_LINK
+	{"lnk"},
+	{"det"},
+	{"wid"},
+	{"syn"},
+	{"alc"},
+	{"gld"},
+	{"typ"},
+	{"lgt"},
+#endif
 
 };
 //-----------------------------------------------------------------
@@ -634,6 +711,25 @@ const char catNames[][16] =
 	{"Mod"},
 	{"Fx B"},	// MODIFIED: FX bus B
 	{"Random"},	// MODIFIED: randomizer
+#if LXR0_MIDI
+	{"Drum 1"},
+	{"Drum 2"},
+	{"Drum 3"},
+	{"Snare"},
+	{"Clp/Cym"},
+	{"Cl HH"},
+	{"Op HH"},
+#endif
+#if LXR0_REVERB
+	{"Reverb"},
+#endif
+#if LXR0_SAMPLES
+	{"Sample"},
+#endif
+#if LXR0_LINK
+	{"Link"},
+	{"Glide"},
+#endif
 };
 //-----------------------------------------------------------------
 // these must correspond to longNamesEnum
@@ -743,6 +839,26 @@ const char longNames[][16] =
 	{"Range hi"},
 	{"Src CV"},
 	{"Tgt CV"},
+#if LXR0_MIDI
+	{"MIDI In"},
+#endif
+#if LXR0_REVERB
+	{"Send"},
+#endif
+#if LXR0_SAMPLES
+	{"Start"},
+	{"End"},
+#endif
+#if LXR0_LINK
+	{"Mode"},
+	{"Detune"},
+	{"Width"},
+	{"Sync"},
+	{"Alloc"},
+	{"Time"},
+	{"Type"},
+	{"Legato"},
+#endif
 };
 
 

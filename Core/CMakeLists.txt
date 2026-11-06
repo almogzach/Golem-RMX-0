@@ -92,6 +92,13 @@ add_library(lxr_dsp OBJECT
     Src/Soundengine/DSPAudio/FX/Distortion.c
     Src/Soundengine/DSPAudio/FX/FxRamBuffer.c
     Src/Soundengine/DSPAudio/FX/Reverb.c
+    Src/Soundengine/DSPAudio/FX/lxr0_reverbBus.c
+    Src/Soundengine/DSPAudio/lxr0_declick.c
+    Src/Soundengine/lxr0_voiceLink.c
+    Src/Soundengine/DSPAudio/lxr0_lfo.c
+    Src/Soundengine/DSPAudio/lxr0_pan.c
+    Src/Soundengine/DSPAudio/lxr0_sampleOsc.c
+    Src/lxr0_samples.c
     Src/Soundengine/DSPAudio/FX/Ringmod.c
     Src/Soundengine/DSPAudio/FX/VerbTools/AllpassDelay.c
     Src/Soundengine/DSPAudio/FX/VerbTools/sinCos.c
@@ -169,3 +176,5 @@ endif()
 
 
 set_property(SOURCE Src/Soundengine/DSPAudio/ResonantFilter.c APPEND PROPERTY COMPILE_OPTIONS -fno-thread-jumps)
+# lxr-0: Reverb_process's constants are written as doubles, which costs float/double conversions per sample
+set_property(SOURCE Src/Soundengine/DSPAudio/FX/Reverb.c APPEND PROPERTY COMPILE_OPTIONS -fsingle-precision-constant)

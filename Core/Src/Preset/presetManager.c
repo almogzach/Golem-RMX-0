@@ -33,6 +33,7 @@
 #include "Soundengine/FxBus2.h"	// MODIFIED: FX bus B
 #include "menu/randomizer.h"	// MODIFIED: per-voice morph (voice parameter lists)
 #include "Preset/morphChain.h"	// MODIFIED: morph chain
+#include "Soundengine/DSPAudio/FX/lxr0_reverbBus.h" // lxr-0
 
 FRESULT preset_savePatternSD(uint8_t presetNr);
 //FRESULT preset_loadPatternSD(uint8_t presetNr);
@@ -56,6 +57,25 @@ uint8_t preset_morphValue;
 //uint8_t activePresetNr = 0;
 
 #define FILE_VERSION 2
+
+#if LXR0_REVERB && LXR0_SAMPLES && LXR0_LINK
+// GOLEM-RMX-0: a kit saved by RMX-0 has its own settings straight after the stock ones, where the combined
+// layout keeps Golem's FX bus B and voice 7 settings. Move them up to their place here, and clear Golem's
+// block: FX B off, and voice 7 marked unset so it copies voice 6 as on stock kits.
+#define RMX0_BLOCK_LEN (PAR_GRMX_VERB_SEND7 - PAR_LXR0_VERB_SEND1)
+#define RMX0_KIT_BYTES (PAR_FX2_TYPE + RMX0_BLOCK_LEN)
+static void preset_remapRmx0Kit(uint8_t* para, unsigned int* bytesRead)
+{
+	if(*bytesRead != RMX0_KIT_BYTES)
+		return;
+	memmove(&para[PAR_LXR0_VERB_SEND1], &para[PAR_FX2_TYPE], RMX0_BLOCK_LEN);
+	memset(&para[PAR_FX2_TYPE], 0, PAR_LXR0_VERB_SEND1 - PAR_FX2_TYPE);
+	*bytesRead = PAR_GRMX_VERB_SEND7; // everything but voice 7's send, which then follows voice 6's
+}
+#define PRESET_REMAP_RMX0(p, n) preset_remapRmx0Kit(p, n)
+#else
+#define PRESET_REMAP_RMX0(p, n)
+#endif
 
 /*
 #define NUM_TRACKS 7
@@ -226,6 +246,10 @@ FRESULT preset_LoadTmpKit()
 			// set to 0 for any that were not read from the file
 			if(END_OF_SOUND_PARAMETERS-bytesRead)
 				memset(para+bytesRead,0,END_OF_SOUND_PARAMETERS-bytesRead);
+			PRESET_REMAP_RMX0(para, &bytesRead); // GOLEM-RMX-0: kits saved by RMX-0
+#if LXR0_REVERB
+			lxr0Verb_kitDefaults(para, bytesRead); // lxr-0: kits saved without the reverb tail
+#endif
 
 			//special case mod targets. normalize.
 			const uint8_t nmt=getNumModTargets();
@@ -517,6 +541,9 @@ void preset_init(uint8_t presetNr)
 		else
 			para[i-8] = 0;
 	}
+#if LXR0_REVERB
+	lxr0Verb_kitDefaults(para, 0); // lxr-0: the init kit has no reverb tail
+#endif
 
 	//special case mod targets. normalize.
 	const uint8_t nmt=getNumModTargets();
@@ -980,6 +1007,10 @@ static FRESULT preset_readDrumsetData(uint8_t presetNr)
 		// set to 0 for any that were not read from the file
 		if(END_OF_SOUND_PARAMETERS-bytesRead)
 			memset(para+bytesRead,0,END_OF_SOUND_PARAMETERS-bytesRead);
+		PRESET_REMAP_RMX0(para, &bytesRead); // GOLEM-RMX-0: kits saved by RMX-0
+#if LXR0_REVERB
+		lxr0Verb_kitDefaults(para, bytesRead); // lxr-0: kits saved without the reverb tail
+#endif
 		
 		//special case mod targets. normalize.
 		const uint8_t nmt=getNumModTargets();
@@ -1102,7 +1133,8 @@ IN_ITCM_RAM void preset_sendDrumsetParametersImmediate()
 {
 	uint8_t i;
 		//special case mod targets
-		for(i=0;i<NUM_MOD_SLOTS;i++)
+		// lxr-0: 6 velocity and LFO settings. This loop ran NUM_MOD_SLOTS times, which set bytes after the LFO voices to 1
+		for(i=0;i<6;i++)
 		{
 			//**VELO load drumkit. translate to param value before sending
 			// parameter_values[PAR_VEL_DEST_1+i] is an index into modTargets, we need to send
@@ -1123,9 +1155,12 @@ IN_ITCM_RAM void preset_sendDrumsetParametersImmediate()
 			upper = (uint8_t)(((value&0x80)>>7) | (((i)&0x3f)<<1));
 			lower = value&0x7f;
 			frontPanel_sendData(CC_LFO_TARGET,upper,lower);
+		}
 
-			//CV
-			value = pgm_read_word(&modTargets[activeParameters[PAR_CV_DEST_1+i]].param);
+		//CV
+		for(i=0;i<NUM_MOD_SLOTS;i++)
+		{
+			const uint16_t value = pgm_read_word(&modTargets[activeParameters[PAR_CV_DEST_1+i]].param);
 			modNode_setDestination(&cvModulators[i], value);
 		}
 
@@ -1203,7 +1238,8 @@ void preset_sendDrumsetParameters()
 {
 	uint8_t i;
 	//special case mod targets
-	for(i=0;i<NUM_MOD_SLOTS;i++)
+	// lxr-0: 6 velocity and LFO settings. This loop ran NUM_MOD_SLOTS times, which set bytes after the LFO voices to 1
+	for(i=0;i<6;i++)
 	{
 		//**VELO load drumkit. translate to param value before sending
 		// parameter_values[PAR_VEL_DEST_1+i] is an index into modTargets, we need to send
@@ -1224,10 +1260,12 @@ void preset_sendDrumsetParameters()
 		upper = (uint8_t)(((value&0x80)>>7) | (((i)&0x3f)<<1));
 		lower = value&0x7f;
 		frontPanel_sendData(CC_LFO_TARGET,upper,lower);
+	}
 
-
-		//CV
-		value = pgm_read_word(&modTargets[activeParameters[PAR_CV_DEST_1+i]].param);
+	//CV
+	for(i=0;i<NUM_MOD_SLOTS;i++)
+	{
+		const uint16_t value = pgm_read_word(&modTargets[activeParameters[PAR_CV_DEST_1+i]].param);
 		modNode_setDestination(&cvModulators[i], value);
 	}
 

@@ -20,6 +20,7 @@
 #include "Soundengine/MIDI/MidiVoiceControl.h"
 #include "IO/adcPots.h"
 #include "Soundengine/FxBus.h"
+#include "Soundengine/DSPAudio/lxr0_declick.h"
 //instance of the snare voice
 INDTCMZ SnareVoice snareVoice;
 
@@ -51,6 +52,9 @@ void Snare_init()
 	snareVoice.noiseOsc.cvFreq = -1.f;
 
 	snareVoice.osc.freq = 440;
+#if LXR0_SAMPLES
+	osc_setSampleTrim(&snareVoice.osc, 3);
+#endif
 	snareVoice.osc.waveform = 1;
 	snareVoice.osc.fmMod = 0;
 	snareVoice.osc.midiFreq = 70<<8 | 64;
@@ -91,6 +95,10 @@ void Snare_setCv1VOct(float oct)
 void Snare_trigger(const uint8_t vel, const uint8_t note)
 {
 	lfo_retrigger(3);
+#if LXR0_DECLICK
+	if(lxr0Declick_arm(3)) // the new note starts from a closed envelope, as it would from silence
+		snareVoice.oscVolEg.value = 0;
+#endif
 	//update velocity modulation
 #if OLD_LFO_ROUTING
 	modNode_updateValue(&velocityModulators[3],vel/127.f);
@@ -108,6 +116,7 @@ void Snare_trigger(const uint8_t vel, const uint8_t note)
 		snareVoice.osc.phase = (0xff<<22)*offset;
 	else
 		snareVoice.osc.phase = 0;
+	OSC_RESTART_SAMPLE(snareVoice.osc); // lxr-0
 
 	DecayEg_trigger(&snareVoice.oscPitchEg);
 	slopeEg2_trigger(&snareVoice.oscVolEg);

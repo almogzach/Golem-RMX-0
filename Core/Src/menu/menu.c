@@ -7,6 +7,8 @@
  * NOTICE.md. See LICENSE and NOTICE.md in the root of the repository.
  */
 
+#include "lxr0_samples.h"
+#include "Soundengine/DSPAudio/FX/lxr0_reverbBus.h"
 #include "menu/menu.h"
 #include "menu/randomizer.h"	// MODIFIED: parameter randomizer
 #include "Preset/morphChain.h"	// MODIFIED: morph chain
@@ -17,9 +19,14 @@
 #include "ledHandler.h"
 
 #include "IO/uart.h"
+#include "Soundengine/MIDI/Uart.h" // lxr-0: lxr0_setOpHhMidi
+#if LXR0_REVERB
+#define LXR0_VERB_SUBPAGE 5 // RMX-0 reverb page. GOLEM-RMX-0: moved to sub-page 5 (the unused FX-A reverb type page); 6 = FX B, 7 = Random
+#endif
 
 
 #include "Preset/PresetManager.h"
+#include "bsp_driver_sd.h"
 #include "menu/menuPages.h"
 #include "menu/MenuText.h"
 //#include "../Hardware/timebase.h"
@@ -43,6 +50,9 @@ uint8_t saveScreenPots[4]; //hold absolute pot position for save page name editi
 
 
 #include "Soundengine/DSPAudio/modulationNode.h"
+#if LXR0_LINK
+#include "Soundengine/lxr0_voiceLink.h"
+#endif
 
 // uppercase 3 letters in buf
 static void upr_three(char *buf);
@@ -57,6 +67,13 @@ static void setNoteName(uint8_t num, char *buf);
 
 static void menu_moveToMenuItem(int8_t inc);
 static void menu_encoderChangeParameter(int8_t inc);
+#if LXR0_LINK
+static void menu_lxr0LinkEdit(uint8_t subPage, uint8_t slot, uint16_t paramNr, uint8_t oldValue, int8_t steps, uint8_t morph);
+#endif
+#if LXR0_RESTART
+static uint8_t restartOpen = 0;
+static void restartRepaint(void);
+#endif
 
 #define ARROW_SIGN '>'
 #define ARROW_UP 0b11000101
@@ -259,6 +276,46 @@ const Name valueNames[NUM_NAMES] =
 
 		{SHORT_CV, CAT_GLOBAL, LONG_CV},/*TEXT_CV_SAVE*/
 		{SHORT_MORPH_TARGET, CAT_SOUND, LONG_MORPH_TARGET},/*TEXT_MORPH_TARGET*/
+#if LXR0_MIDI
+		{SHORT_MIDI, CAT_LXR0_OPHH, LONG_LXR0_MIDI_IN},/*TEXT_LXR0_OPHH_MIDI*/
+		{SHORT_LXR0_CH1, CAT_LXR0_DRUM1, LONG_MIDI_CHANNEL},/*TEXT_LXR0_CHAN_DRUM1*/
+		{SHORT_LXR0_CH2, CAT_LXR0_DRUM2, LONG_MIDI_CHANNEL},/*TEXT_LXR0_CHAN_DRUM2*/
+		{SHORT_LXR0_CH3, CAT_LXR0_DRUM3, LONG_MIDI_CHANNEL},/*TEXT_LXR0_CHAN_DRUM3*/
+		{SHORT_LXR0_CH4, CAT_LXR0_SNARE, LONG_MIDI_CHANNEL},/*TEXT_LXR0_CHAN_SNARE*/
+		{SHORT_LXR0_CH5, CAT_LXR0_CLPCYM, LONG_MIDI_CHANNEL},/*TEXT_LXR0_CHAN_CLPCYM*/
+		{SHORT_LXR0_CH6, CAT_LXR0_CLHH, LONG_MIDI_CHANNEL},/*TEXT_LXR0_CHAN_CLHH*/
+		{SHORT_LXR0_CH7, CAT_LXR0_OPHH, LONG_MIDI_CHANNEL},/*TEXT_LXR0_CHAN_OPHH*/
+		{SHORT_LXR0_NT1, CAT_LXR0_DRUM1, LONG_NOTE},/*TEXT_LXR0_NOTE_DRUM1*/
+		{SHORT_LXR0_NT2, CAT_LXR0_DRUM2, LONG_NOTE},/*TEXT_LXR0_NOTE_DRUM2*/
+		{SHORT_LXR0_NT3, CAT_LXR0_DRUM3, LONG_NOTE},/*TEXT_LXR0_NOTE_DRUM3*/
+		{SHORT_LXR0_NT4, CAT_LXR0_SNARE, LONG_NOTE},/*TEXT_LXR0_NOTE_SNARE*/
+		{SHORT_LXR0_NT5, CAT_LXR0_CLPCYM, LONG_NOTE},/*TEXT_LXR0_NOTE_CLPCYM*/
+		{SHORT_LXR0_NT6, CAT_LXR0_CLHH, LONG_NOTE},/*TEXT_LXR0_NOTE_CLHH*/
+		{SHORT_LXR0_NT7, CAT_LXR0_OPHH, LONG_NOTE},/*TEXT_LXR0_NOTE_OPHH*/
+#endif
+#if LXR0_REVERB
+		{SHORT_LXR0_REV, CAT_LXR0_REVERB, LONG_LXR0_SEND},/*TEXT_LXR0_VERB_SEND*/
+		{SHORT_LXR0_REV, CAT_LXR0_REVERB, LONG_AMOUNT},/*TEXT_LXR0_VERB_AMOUNT*/
+		{SHORT_OUT, CAT_LXR0_REVERB, LONG_AUDIO_OUT},/*TEXT_LXR0_VERB_OUT*/
+		{SHORT_PRE, CAT_LXR0_REVERB, LONG_PREDELAY},/*TEXT_LXR0_VERB_PREDELAY*/
+		{SHORT_DECAY, CAT_LXR0_REVERB, LONG_DECAY},/*TEXT_LXR0_VERB_DECAY*/
+		{SHORT_TONE, CAT_LXR0_REVERB, LONG_TONE},/*TEXT_LXR0_VERB_TONE*/
+		{SHORT_REF, CAT_LXR0_REVERB, LONG_REFLECTION},/*TEXT_LXR0_VERB_REFLECTION*/
+#endif
+#if LXR0_SAMPLES
+		{SHORT_LXR0_TRIM_START, CAT_LXR0_TRIM, LONG_LXR0_TRIM_START},/*TEXT_LXR0_TRIM_START*/
+		{SHORT_LXR0_TRIM_END, CAT_LXR0_TRIM, LONG_LXR0_TRIM_END},/*TEXT_LXR0_TRIM_END*/
+#endif
+#if LXR0_LINK
+		{SHORT_LXR0_LINK_MODE, CAT_LXR0_LINK, LONG_LXR0_LINK_MODE},/*TEXT_LXR0_LINK_MODE*/
+		{SHORT_LXR0_LINK_DETUNE, CAT_LXR0_LINK, LONG_LXR0_LINK_DETUNE},/*TEXT_LXR0_LINK_DETUNE*/
+		{SHORT_LXR0_LINK_WIDTH, CAT_LXR0_LINK, LONG_LXR0_LINK_WIDTH},/*TEXT_LXR0_LINK_WIDTH*/
+		{SHORT_LXR0_LINK_SYNC, CAT_LXR0_LINK, LONG_LXR0_LINK_SYNC},/*TEXT_LXR0_LINK_SYNC*/
+		{SHORT_LXR0_LINK_ALLOC, CAT_LXR0_LINK, LONG_LXR0_LINK_ALLOC},/*TEXT_LXR0_LINK_ALLOC*/
+		{SHORT_LXR0_LINK_GLIDE, CAT_LXR0_GLIDE, LONG_LXR0_LINK_GLIDE},/*TEXT_LXR0_LINK_GLIDE*/
+		{SHORT_LXR0_LINK_GLIDE_TYPE, CAT_LXR0_GLIDE, LONG_LXR0_LINK_GLIDE_TYPE},/*TEXT_LXR0_LINK_GLIDE_TYPE*/
+		{SHORT_LXR0_LINK_LEGATO, CAT_LXR0_GLIDE, LONG_LXR0_LINK_LEGATO},/*TEXT_LXR0_LINK_LEGATO*/
+#endif
 
 		// MODIFIED: FX bus B page labels
 		{SHORT_TYPE, CAT_FXB, LONG_TYPE},			/*TEXT_FXB_TYPE*/
@@ -637,6 +694,41 @@ const enum Datatypes PROGMEM parameter_dtypes[NUM_PARAMS] = {
 		/*PAR_HH7_DISTORTION*/	DTYPE_0B127,
 		/*PAR_HH7_AUDIO_OUT*/	DTYPE_MENU | (MENU_AUDIO_OUT<<8),
 		/*PAR_HH7_CHOKE*/		DTYPE_ON_OFF,
+		// RMX-0 settings (GOLEM-RMX-0: after Golem's, matching Parameters.h)
+#if LXR0_REVERB
+		/*PAR_LXR0_VERB_SEND1*/	DTYPE_0B127,
+		/*PAR_LXR0_VERB_SEND2*/	DTYPE_0B127,
+		/*PAR_LXR0_VERB_SEND3*/	DTYPE_0B127,
+		/*PAR_LXR0_VERB_SEND4*/	DTYPE_0B127,
+		/*PAR_LXR0_VERB_SEND5*/	DTYPE_0B127,
+		/*PAR_LXR0_VERB_SEND6*/	DTYPE_0B127,
+		/*PAR_LXR0_VERB_AMOUNT*/	DTYPE_0B127,
+		/*PAR_LXR0_VERB_ROUTING*/	DTYPE_MENU | (MENU_AUDIO_OUT_FX<<8),
+		/*PAR_LXR0_VERB_PREDELAY*/	DTYPE_0B127,
+		/*PAR_LXR0_VERB_DECAY*/		DTYPE_0B127,
+		/*PAR_LXR0_VERB_TONE*/		DTYPE_0B127,
+		/*PAR_LXR0_VERB_REFLECTION*/	DTYPE_0B127,
+#endif
+#if LXR0_SAMPLES
+		/*PAR_LXR0_TRIM_START1-6*/	DTYPE_0B255, DTYPE_0B255, DTYPE_0B255, DTYPE_0B255, DTYPE_0B255, DTYPE_0B255,
+		/*PAR_LXR0_TRIM_END1-6*/	DTYPE_0B255, DTYPE_0B255, DTYPE_0B255, DTYPE_0B255, DTYPE_0B255, DTYPE_0B255,
+#endif
+#if LXR0_LINK
+		/*PAR_LXR0_LINK_VOICES*/	DTYPE_0B255,
+		/*PAR_LXR0_LINK_MODE*/		DTYPE_MENU | (MENU_LXR0_LINK_MODE<<8),
+		/*PAR_LXR0_LINK_DETUNE*/	DTYPE_0B127,
+		/*PAR_LXR0_LINK_WIDTH*/		DTYPE_0B127,
+		/*PAR_LXR0_LINK_SYNC*/		DTYPE_ON_OFF,
+		/*PAR_LXR0_LINK_ALLOC*/		DTYPE_MENU | (MENU_LXR0_LINK_ALLOC<<8),
+		/*PAR_LXR0_LINK_GLIDE*/		DTYPE_0B127,
+		/*PAR_LXR0_LINK_GLIDE_TYPE*/	DTYPE_MENU | (MENU_LXR0_GLIDE_TYPE<<8),
+		/*PAR_LXR0_LINK_GLIDE2-3*/	DTYPE_0B127, DTYPE_0B127,
+		/*PAR_LXR0_LINK_GLIDE_TYPE2-3*/	DTYPE_MENU | (MENU_LXR0_GLIDE_TYPE<<8), DTYPE_MENU | (MENU_LXR0_GLIDE_TYPE<<8),
+		/*PAR_LXR0_LINK_LEGATO1-3*/	DTYPE_ON_OFF, DTYPE_ON_OFF, DTYPE_ON_OFF,
+#endif
+#if LXR0_REVERB
+		/*PAR_GRMX_VERB_SEND7*/	DTYPE_0B127,	// GOLEM-RMX-0: voice 7 reverb send
+#endif
 
 
 	    /*PAR_ROLL*/ 			DTYPE_MENU | (MENU_ROLL_RATES<<8),
@@ -688,7 +780,11 @@ const enum Datatypes PROGMEM parameter_dtypes[NUM_PARAMS] = {
 	    /*PAR_FOLLOW*/ 			DTYPE_ON_OFF,//DTYPE_MENU | (MENU_FOLLOW<<8),
 	    /*PAR_QUANTISATION*/ 	DTYPE_MENU | (MENU_SEQ_QUANT<<8),
 	    /*PAR_SCREENSAVER_ON_OFF*/ DTYPE_ON_OFF,						//261
+#if LXR0_MIDI
+	    /*PAR_MIDI_MODE*/ 		DTYPE_ON_OFF,			  // lxr-0: OP HH jack is MIDI in
+#else
 	    /*PAR_MIDI_MODE*/ 		DTYPE_MENU | (MENU_MIDI<<8),			  // This is now unused.
+#endif
 	    /*PAR_MIDI_CHAN_7*/ 	DTYPE_1B16,
 	    /*PAR_MIDI_ROUTING*/	DTYPE_MENU | (MENU_MIDI_ROUTING<<8),
 	    /*PAR_MIDI_FILT_TX*/    DTYPE_MENU | (MENU_MIDI_FILTERING<<8),
@@ -1414,6 +1510,12 @@ static void menu_repaintLoadSavePage()
 		break;
 #endif
 	//case SAVE_TYPE_SAMPLES:     toptxt=PSTR("Samples "); break;
+#if LXR0_SAMPLES
+	case SAVE_TYPE_SAMPLES:
+		toptxt=PSTR("Samples ");
+		memcpy(&editDisplayBuffer[1][0],"Click: replace",14); // stays on the row: nothing else draws here
+		break;
+#endif
 	}
 
 	strcpy(&editDisplayBuffer[0][6],toptxt);
@@ -1807,6 +1909,14 @@ void menu_repaintGeneric()
 				const uint8_t menuId = (parameter_dtypes[parNr] >> 8);
 				// get the value name
 				getMenuItemNameForValue(menuId, curParmVal, &editDisplayBuffer[1][13]);
+#if LXR0_SAMPLES
+				if(menuId == MENU_WAVEFORM)
+				{
+					const Lxr0Sample* sample = lxr0Samples_get(curParmVal);
+					if(sample)
+						memcpy(&editDisplayBuffer[1][0], sample->name, sizeof(sample->name));
+				}
+#endif
 			}
 				break; // switch(parameters[parNr].dtype&0x0F) case DTYPE_MENU
 
@@ -1861,6 +1971,11 @@ void menu_repaintGeneric()
 						numtostrpu(&editDisplayBuffer[1][13],(uint8_t)(curParmVal),' ');
 					}
 				}
+#if LXR0_MIDI
+				if(parNr == PAR_MIDI_CHAN_GLOBAL && curParmVal == 0) // RMX-0 0.5.3: global channel off
+					memcpy(&editDisplayBuffer[1][13], "off", 3);
+				else
+#endif
 				if((parNr == PAR_MORPH_TARGET) || (parNr == PAR_MORPH_SOURCE) || (parNr == PAR_MORPH_LO) || (parNr == PAR_MORPH_HI))	// MODIFIED: + morph chain
 				{
 					memcpy(&editDisplayBuffer[1][0], savefileNames[curParmVal][KIT_NAMES], 8);
@@ -2002,6 +2117,10 @@ void menu_repaintGeneric()
 							numtostrpu(valueAsText,curParmVal,' ');
 						}
 					}
+#if LXR0_MIDI
+					else if(parNr == PAR_MIDI_CHAN_GLOBAL && curParmVal == 0) // lxr-0 0.5.3: global channel off
+						memcpy(valueAsText, "off", 3);
+#endif
 					else
 					{
 						// fallthrough for the rest of the unsigned values
@@ -2041,6 +2160,13 @@ void menu_repaint()
 	if(screensaver_Active) return;
 
 	visibleCursor = 0;
+#if LXR0_RESTART
+	if(restartOpen)
+	{
+		restartRepaint();
+		return;
+	}
+#endif
 	if(menu_activePage == LOAD_PAGE || menu_activePage==SAVE_PAGE)
 	{
 		//this is a special case because the load/save page differs from all the other pages
@@ -2562,6 +2688,11 @@ void menu_handleLoadSaveMenu(int8_t inc, uint8_t btnClicked)
 					preset_loadGlobals();
 					menu_resetSaveParameters();						
 					break;
+#if LXR0_SAMPLES
+				case SAVE_TYPE_SAMPLES:
+					lxr0Samples_installFromSd(); // resets when done
+					break;
+#endif
 #if USE_SAMPLES
 				case SAVE_TYPE_SAMPLES:
 
@@ -2900,6 +3031,12 @@ static uint8_t getMaxEntriesForMenu(uint8_t menuId)
 
 	case MENU_CV_SAVE:
 		return cvSaveNames[0][0];
+	case MENU_LXR0_LINK_MODE:
+		return linkModeNames[0][0];
+	case MENU_LXR0_LINK_ALLOC:
+		return linkAllocNames[0][0];
+	case MENU_LXR0_GLIDE_TYPE:
+		return glideTypeNames[0][0];
 
 	default:
 		return 0;
@@ -3040,6 +3177,15 @@ static void getMenuItemNameForValue(const uint8_t menuId, const uint8_t curParmV
 
 	case MENU_CV_SAVE:
 		p=cvSaveNames[curParmVal+1];
+		break;
+	case MENU_LXR0_LINK_MODE:
+		p=linkModeNames[curParmVal+1];
+		break;
+	case MENU_LXR0_LINK_ALLOC:
+		p=linkAllocNames[curParmVal+1];
+		break;
+	case MENU_LXR0_GLIDE_TYPE:
+		p=glideTypeNames[curParmVal+1];
 			break;
 
 
@@ -3055,9 +3201,98 @@ static void getMenuItemNameForValue(const uint8_t menuId, const uint8_t curParmV
 // called when either the encoder is rotated, or the encoder button is clicked
 // inc - the number of clicks the encoder has moved
 // button - 1 if the button is depressed, 0 if its not
+#if LXR0_RESTART
+// lxr-0: the restart menu. Nothing changes until the bar reaches the right edge; any button leaves.
+#define RESTART_CELLS 16
+#define RESTART_BLOCK ((char)0xFF) // solid block in the LCD's character ROM
+static uint8_t restartFilled = 0;
+
+void menu_lxr0RestartOpen(void)
+{
+	restartOpen = 1;
+	restartFilled = 0;
+	menu_repaintAll();
+}
+
+void menu_lxr0RestartClose(void)
+{
+	restartOpen = 0;
+	menu_repaintAll();
+}
+
+uint8_t menu_lxr0RestartIsOpen(void)
+{
+	return restartOpen;
+}
+
+static void restartRepaint(void)
+{
+	memset(&editDisplayBuffer[0][0],' ',16);
+	memset(&editDisplayBuffer[1][0],RESTART_BLOCK,restartFilled);
+	memset(&editDisplayBuffer[1][restartFilled],' ',(size_t)(16-restartFilled));
+	memcpy(&editDisplayBuffer[0][0],"Restart: turn >",15);
+	display_needs_refresh = 1;
+}
+
+// the current kit is autosaved when there's a card, so the restart brings it back as a power cycle does
+static void restartNow(void)
+{
+	restartRepaint();
+	lcd_process_display_interrupt = 0;
+	while(sendDisplayBuffer() != 0);
+	if(BSP_SD_IsDetected() == SD_PRESENT)
+		preset_saveTmpKit();
+	NVIC_SystemReset();
+}
+
+static void restartEncoder(int8_t inc)
+{
+	const int16_t filled = (int16_t)restartFilled + inc;
+	restartFilled = filled < 0 ? 0 : (filled > RESTART_CELLS ? RESTART_CELLS : (uint8_t)filled);
+	screensaver_touch();
+	if(restartFilled == RESTART_CELLS)
+		restartNow();
+	menu_repaintAll();
+}
+#endif
+//-----------------------------------------------------------------
+void menu_lxr0RedrawScreen(void)
+{
+	memset(currentDisplayBuffer, 0, sizeof(currentDisplayBuffer)); // every character differs, so all are resent
+	menu_repaintAll();
+}
+//-----------------------------------------------------------------
+#if LXR0_REVERB
+// lxr-0: keeps the readout on the reverb's 2nd screen moving
+static void reverbReadoutTick(void)
+{
+	static uint32_t last = 0;
+	if(menu_activePage != FX_MODE_PAGE || editModeActive || screensaver_Active
+			|| ((menuIndex & MASK_PAGE)>>PAGE_SHIFT) != LXR0_VERB_SUBPAGE || (menuIndex & MASK_PARAMETER) < 4)
+		return;
+	if(HAL_GetTick() - last < 250)
+		return;
+	last = HAL_GetTick();
+	menu_repaint();
+	display_needs_refresh = 1;
+}
+#endif
+//-----------------------------------------------------------------
 void menu_parseEncoder(int8_t inc, uint8_t button)
 {
 	uint8_t btnClicked=0;
+#if LXR0_REVERB
+	reverbReadoutTick();
+#endif
+#if LXR0_RESTART
+	if(restartOpen)
+	{
+		lastEncoderButton = button; // the click does nothing here
+		if(inc != 0)
+			restartEncoder(inc);
+		return;
+	}
+#endif
 	// handle the button being clicked or released
 	if(button != lastEncoderButton) { // was the button clicked?
 		btnClicked=button;
@@ -3191,6 +3426,9 @@ static void menu_encoderChangeParameter(int8_t inc)
 	uint8_t *paramValue;
 
 	paramValue = &activeParameters[paramNr];
+#if LXR0_LINK
+	const uint8_t linkOldValue = *paramValue;
+#endif
 
 	//increase parameter value
 	if(inc>0) //positive increase
@@ -3353,6 +3591,12 @@ static void menu_encoderChangeParameter(int8_t inc)
 
 
 	case DTYPE_1B16://parameter_dtypes[paramNr] & 0x0F
+#if LXR0_MIDI
+		if(paramNr == PAR_MIDI_CHAN_GLOBAL && *paramValue > 16) // lxr-0 0.5.3: 0 is off
+			*paramValue = 16;
+		else if(paramNr == PAR_MIDI_CHAN_GLOBAL) {}
+		else
+#endif
 		if(*paramValue < 1)
 			*paramValue = 1;
 		else if(*paramValue > 16)
@@ -3428,6 +3672,10 @@ static void menu_encoderChangeParameter(int8_t inc)
 		menu_parseGlobalParam(paramNr,activeParameters[paramNr]);
 
 	//frontPanel_sendData(0xb0,paramNr,*paramValue);
+#if LXR0_LINK
+	if(buttonHandler_getMode() != SELECT_MODE_MOD)
+		menu_lxr0LinkEdit(activePage, activeParameter, paramNr, linkOldValue, inc, 0);
+#endif
 }
 
 //-----------------------------------------------------------------
@@ -3535,6 +3783,9 @@ void menu_setLoadSaveCategory(uint8_t cat)
 #if !EURORACK_MODULE
 		case SAVE_TYPE_ALL:
 #endif
+#if LXR0_SAMPLES
+		case SAVE_TYPE_SAMPLES:
+#endif
 			menu_saveOptions.nameBuffer = UNUSED_NAMES;
 			break;
 		//case SAVE_TYPE_SAMPLES:     toptxt=PSTR("Samples "); break;
@@ -3588,6 +3839,12 @@ void menu_switchSubPage(uint8_t subPageNr, uint8_t toggle)
 		if((activeParameter < 4) && has2ndPage(activePage)) {
 			activeParameter = 4;
 		} else if(activePage == FX_BUS_B_SUBPAGE) {
+#if LXR0_REVERB
+			// GOLEM-RMX-0: FX B -> RMX-0 reverb -> Random
+			activePage = LXR0_VERB_SUBPAGE;
+			activeParameter = 0;
+		} else if(activePage == LXR0_VERB_SUBPAGE) {
+#endif
 			// MODIFIED: then the randomizer page, aimed at the voice being edited
 			activePage = RANDOM_SUBPAGE;
 			activeParameter = 0;
@@ -3721,8 +3978,13 @@ void menu_switchPage(uint8_t pageNr)
 		break;
 
 	case FX_MODE_PAGE:
-		// MODIFIED: if bus B is showing, toggle from bus B instead of jumping back to bus A
-		if((menu_activePage == FX_MODE_PAGE) && ((menu_getSubPage() == FX_BUS_B_SUBPAGE) || (menu_getSubPage() == RANDOM_SUBPAGE)))
+		// GOLEM-RMX-0: FX cycles FX A -> FX B -> RMX-0 reverb -> Random -> FX A (2nd screens in between).
+		// If one of the extra pages is showing, toggle from it instead of jumping back to bus A.
+		if((menu_activePage == FX_MODE_PAGE) && ((menu_getSubPage() == FX_BUS_B_SUBPAGE) || (menu_getSubPage() == RANDOM_SUBPAGE)
+#if LXR0_REVERB
+			|| (menu_getSubPage() == LXR0_VERB_SUBPAGE)
+#endif
+			))
 		{
 			menu_switchSubPage(menu_getSubPage(), 1 );
 		}
@@ -3949,6 +4211,12 @@ void menu_parseGlobalParam(uint16_t paramNr, uint8_t value)
 		}
 		break;
 
+#if LXR0_MIDI
+	case PAR_MIDI_MODE: // lxr-0: OP HH jack as MIDI in
+		lxr0_setOpHhMidi(value == 1);
+		break;
+#endif
+
 	case PAR_MIDI_CHAN_7:
 		paramNr -= 5; //because they are not after one another in the param list
 	case PAR_MIDI_CHAN_1:
@@ -3960,6 +4228,10 @@ void menu_parseGlobalParam(uint16_t paramNr, uint8_t value)
 	case PAR_MIDI_CHAN_GLOBAL:
 	{
 		uint8_t voice;
+#if LXR0_MIDI
+		if(paramNr == PAR_MIDI_CHAN_GLOBAL && value == 0)
+			break; // lxr-0 0.5.3: off; the MIDI parser reads 0 from activeParameters
+#endif
 		uint8_t channel = (uint8_t)(value-1);
 		if(paramNr==PAR_MIDI_CHAN_GLOBAL)
 			voice= 7; // will be 7 for global channel
@@ -4307,6 +4579,9 @@ static uint8_t limitPotValue(int8_t diff, uint16_t paramNr)
 		break;
 	case DTYPE_1B16:
 		if(newValue > 16) newValue = 16;
+#if LXR0_MIDI
+		else if(paramNr == PAR_MIDI_CHAN_GLOBAL) {} // lxr-0 0.5.3: 0 is off
+#endif
 		else if(newValue < 1) newValue = 1;
 		break;
 	case DTYPE_1B64:
@@ -4397,6 +4672,10 @@ static uint8_t getDtypeValue(uint8_t value, uint16_t paramNr)
 		return (uint8_t)(1 + 5*frac);
 		break;
 	case DTYPE_1B16:
+#if LXR0_MIDI
+		if(paramNr == PAR_MIDI_CHAN_GLOBAL) // lxr-0 0.5.3: 0 is off
+			return (uint8_t)(16*frac);
+#endif
 		return (uint8_t)(1 + 15*frac);
 		break;
 	case DTYPE_0B15:
@@ -4449,6 +4728,117 @@ uint8_t menu_getDisplayParameterType(uint8_t pos)
 
 	return parameter_dtypes[paramNr] & 0xFF;
 }
+#if LXR0_LINK
+//-----------------------------------------------------------------
+// lxr-0: what a voice link shares. Everything on drums 1-3's pages but level, pan, outputs, the
+// reverb send, the link settings themselves and the LFO page; LFO and mod routes stay per drum.
+// Glide and legato (0.5.7) are per drum, so they are shared like the sound.
+#define LINK_SUBPAGES 7	// osc, amp EG, pitch mod, FM, transient, filter, mix
+static uint8_t menu_lxr0LinkShares(const uint8_t subPage, const uint16_t p)
+{
+	if(p == PAR_NONE || subPage >= LINK_SUBPAGES)
+		return 0;
+	if((p >= PAR_LXR0_LINK_VOICES && p <= PAR_LXR0_LINK_ALLOC)
+			|| (p >= PAR_VOL1 && p <= PAR_VOL3) || (p >= PAR_PAN1 && p <= PAR_PAN3)
+			|| (p >= PAR_AUDIO_OUT1 && p <= PAR_AUDIO_OUT3))
+		return 0;
+#if LXR0_REVERB
+	if(p >= PAR_LXR0_VERB_SEND1 && p <= PAR_LXR0_VERB_SEND3)
+		return 0;
+#endif
+	switch(parameter_dtypes[p] & 0xFF)
+	{
+	case DTYPE_TARGET_SELECTION_CV:
+	case DTYPE_TARGET_SELECTION_VELO:
+	case DTYPE_TARGET_SELECTION_LFO:
+	case DTYPE_VOICE_LFO:
+		return 0;
+	default:
+		return 1;
+	}
+}
+
+// send a sound parameter the way the pot and encoder do
+static void menu_lxr0SendParam(const uint16_t p, const uint8_t morph)
+{
+	const uint8_t v = morph ? preset_getMorphValue(p, activeParameters[PAR_MORPH]) : activeParameters[p];
+	if(p < 128)
+		frontPanel_sendData(MIDI_CC, (uint8_t)p, v);
+	else if(p < 255)
+		frontPanel_sendData(CC_2, (uint8_t)(p - 128), v);
+	else if(p < END_OF_SOUND_PARAMETERS)
+		frontPanel_sendData(CC3, (uint8_t)(p - 255), v);
+}
+
+// the same parameter on another drum: same sub-page and slot on its page
+static uint16_t menu_lxr0LinkMatch(const uint8_t voice, const uint8_t subPage, const uint8_t slot, const uint16_t p)
+{
+	const uint16_t q = pgm_read_word(&menuPages[VOICE1_PAGE + voice][subPage].bot1 + slot);
+	return (q != PAR_NONE && parameter_dtypes[q] == parameter_dtypes[p]) ? q : PAR_NONE;
+}
+
+// turning sync on: the lead drum's sound goes to the other linked drums now
+static void menu_lxr0LinkSyncAll(void)
+{
+	const uint8_t linked = lxr0Link_voices(), lead = lxr0Link_lead();
+	for(uint8_t sub=0; sub<LINK_SUBPAGES; sub++)
+		for(uint8_t slot=0; slot<8; slot++)
+		{
+			const uint16_t p = pgm_read_word(&menuPages[VOICE1_PAGE + lead][sub].bot1 + slot);
+			if(!menu_lxr0LinkShares(sub, p))
+				continue;
+			for(uint8_t v=0; v<3; v++)
+			{
+				if(v == lead || !(linked & (1<<v)))
+					continue;
+				const uint16_t q = menu_lxr0LinkMatch(v, sub, slot, p);
+				if(q == PAR_NONE)
+					continue;
+				activeParameters[q] = activeParameters[p];
+				menu_lxr0SendParam(q, 1);
+			}
+		}
+}
+
+// an edit on a linked drum's page, in the group view: the other linked drums' parameter in the same
+// place moves by the same steps, each stopping at its own limit; with sync it takes the same value
+static void menu_lxr0LinkEdit(const uint8_t subPage, const uint8_t slot, const uint16_t paramNr, const uint8_t oldValue, const int8_t steps, const uint8_t morph)
+{
+	const uint8_t linked = lxr0Link_voices();
+	if(paramNr == PAR_LXR0_LINK_SYNC)
+	{
+		if(!oldValue && activeParameters[paramNr] && linked)
+			menu_lxr0LinkSyncAll();
+		return;
+	}
+	if(!linked || menu_activePage > VOICE3_PAGE || !(linked & (1<<menu_activePage)) || lxr0Link_solo())
+		return;
+	if(!menu_lxr0LinkShares(subPage, paramNr))
+		return;
+	const uint8_t sync = activeParameters[PAR_LXR0_LINK_SYNC];
+	for(uint8_t v=0; v<3; v++)
+	{
+		if(v == menu_activePage || !(linked & (1<<v)))
+			continue;
+		const uint16_t q = menu_lxr0LinkMatch(v, subPage, slot, paramNr);
+		if(q == PAR_NONE)
+			continue;
+		activeParameters[q] = sync ? activeParameters[paramNr] : limitPotValue(steps, q);
+		menu_lxr0SendParam(q, morph);
+	}
+}
+#endif
+#define LINK_SUBPAGE 4		// the transient page holds the link settings
+#define LINK_MODE_SLOT 3
+void menu_lxr0OpenLink(const uint8_t voice)
+{
+	menu_switchPage(VOICE1_PAGE + voice);
+	menu_setActiveVoice(voice);
+	frontPanel_sendData(SEQ_CC, SEQ_SET_ACTIVE_TRACK, voice);
+	editModeActive = 0;
+	menuIndex = (uint8_t)((LINK_SUBPAGE << PAGE_SHIFT) | LINK_MODE_SLOT);
+	menu_repaintAll();
+}
 //-----------------------------------------------------------------
 uint8_t menu_parseKnobValue(uint8_t potNr, int16_t diff)
 {
@@ -4473,8 +4863,14 @@ uint8_t menu_parseKnobValue(uint8_t potNr, int16_t diff)
 	//-------------------------------------------------
 
 	//leave edit mode if active
-	editModeActive = 0;
+#if LXR0_SAMPLES
+	// lxr-0: unless this pot turns the waveform being shown, so sample names can be read while scrolling
+	const uint8_t keepEditMode = editModeActive && potNr + isOn2ndPage == activeParameter
+			&& (parameter_dtypes[paramNr] >> 8) == MENU_WAVEFORM && (parameter_dtypes[paramNr] & 0xFF) == DTYPE_MENU;
+	if(!keepEditMode)
+#endif
 	{
+		editModeActive = 0;
 		//force complete repaint if edit mode is left
 		menu_repaintAll();
 	}
@@ -4515,6 +4911,9 @@ uint8_t menu_parseKnobValue(uint8_t potNr, int16_t diff)
 	}
 #endif
 
+#if LXR0_LINK
+	const uint8_t linkOldValue = activeParameters[paramNr];
+#endif
 	//update parameter value to the new value
 	//mainParameters[paramNr] = dtypeValue;
 	if(paramNr >= END_OF_SOUND_PARAMETERS)
@@ -4729,6 +5128,10 @@ uint8_t menu_parseKnobValue(uint8_t potNr, int16_t diff)
 		break;
 	}
 	}
+#if LXR0_LINK
+	if(buttonHandler_getMode() != SELECT_MODE_MOD)
+		menu_lxr0LinkEdit(activePage, (uint8_t)(potNr + isOn2ndPage), paramNr, linkOldValue, (int8_t)diff, 1);
+#endif
 
 	return 1;
 }

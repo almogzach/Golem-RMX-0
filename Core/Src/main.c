@@ -7,6 +7,7 @@
  * NOTICE.md. See LICENSE and NOTICE.md in the root of the repository.
  */
 
+#include "lxr0_samples.h"
 #include "main.h"
 #include "fatfs.h"
 
@@ -53,6 +54,8 @@ float debugWatch = 0;
 void SystemClock_Config(void);
 void PeriphCommonClock_Config(void);
 static void init_gpio(void);
+#ifdef LXR0_VERSION
+#endif
 static void init_dma(void);
 static void init_adc1(void);
 static void init_i2s(I2S_HandleTypeDef *hi2s, SPI_TypeDef *instance);
@@ -238,8 +241,11 @@ int main(void)
 
 	//print boot up message
 lcd_clear();
-// MODIFIED firmware "Golem": the start-up screen marks it as modified, as required by NOTICE.md
-lcd_string("GOLEM v");
+#if LXR0_SAMPLES
+menu_setNumSamples(lxr0Samples_init());	// RMX-0: sample library
+#endif
+// GOLEM-RMX-0: the start-up screen marks the firmware as modified, as required by NOTICE.md
+lcd_string("GOLEM-RMX0 v");
 lcd_string(FIRMWARE_VERSION);
 //goto 2nd line
 lcd_setcursor(0,2);
@@ -483,6 +489,9 @@ voiceControl_start();
 	  soundengine_process();
 	//  menu_tick();
 	  led_tickHandler();
+#if LXR0_LINK
+	  buttonHandler_lxr0LinkTick();
+#endif
 	  soundengine_process();
 	//  menu_tick();
 	  adc_checkPots();
@@ -605,6 +614,9 @@ static const struct
 	{ADC_CHANNEL_0,  ADC_SAMPLETIME_28CYCLES},	// PA0 CV 5
 };
 
+#ifdef LXR0_VERSION
+// boot screen: RMX-0 two rows tall from custom characters on the left, the version on the right.
+#endif
 static void init_adc1(void)
 {
 	hadc1.Instance = ADC1;

@@ -28,6 +28,17 @@
 #include "Soundengine/FxBus.h"
 #include "Soundengine/MIDI/MidiVoiceControl.h"
 #include <Soundengine/TriggerProcessor.h>
+#if LXR0_LINK
+#include "Soundengine/lxr0_voiceLink.h"
+#endif
+
+#if LXR0_RESTART
+static uint8_t lxr0_editHeld = 0;
+static uint8_t lxr0_perfHeld = 0;
+#endif
+#if LXR0_SAMPLES
+static uint8_t lxr0_onSamplesPage = 0; // the load page shows the sample install
+#endif
 
 //used to remember the last active page when entering the sequencer mode
 //needed to return to the previously shown page when seq mode button is released
@@ -326,6 +337,11 @@ static void buttonHandler_handleModeButtons(uint8_t mode) {
 	if(mode==SELECT_MODE_LOAD)
 	{
 		//Load kit, Save kit, Save Morph
+#if LXR0_SAMPLES
+		// lxr-0: Load kit, Save kit, Save Morph, Install samples
+		const uint8_t wasOnSamples = lxr0_onSamplesPage;
+		lxr0_onSamplesPage = (buttonHandler_stateMemory.selectButtonMode == SELECT_MODE_SAVE_MORPH);
+#endif
 		switch(buttonHandler_stateMemory.selectButtonMode)
 		{
 		default:
@@ -334,6 +350,10 @@ static void buttonHandler_handleModeButtons(uint8_t mode) {
 			break;
 
 		case SELECT_MODE_LOAD:
+#if LXR0_SAMPLES
+			if(wasOnSamples)
+				break; // back to Load kit
+#endif
 			mode = SELECT_MODE_SAVE;
 			break;
 
@@ -431,7 +451,11 @@ static void buttonHandler_handleModeButtons(uint8_t mode) {
 				led_clearAllBlinkLeds();
 				led_setMode2(buttonHandler_stateMemory.selectButtonMode);
 
+#if LXR0_SAMPLES
+				menu_setLoadSaveCategory(lxr0_onSamplesPage ? SAVE_TYPE_SAMPLES : SAVE_TYPE_KIT);
+#else
 				menu_setLoadSaveCategory(SAVE_TYPE_KIT);
+#endif
 				//update the status LED
 			//	led_setMode2(2);
 
@@ -1579,8 +1603,14 @@ static void buttonHandler_partButtonReleased(uint8_t partNr)
 }
 #endif
 
+#if LXR0_LINK
+static void buttonHandler_lxr0LinkRelease(uint8_t voiceNr);
+#endif
 void buttonHandler_voiceButtonReleased(uint8_t voiceNr)
 {
+#if LXR0_LINK
+	buttonHandler_lxr0LinkRelease(voiceNr);
+#endif
 
 	if (menu_activePage == PERF_PAGE)
 	{
@@ -1592,6 +1622,74 @@ void buttonHandler_voiceButtonReleased(uint8_t voiceNr)
 	}
 
 }
+#if LXR0_LINK
+//--------------------------------------------------------
+// lxr-0: voice links from the panel, with DRUM held. The first press selects a drum as usual. A second
+// drum pressed while the first is held links them; a double-tap edits one linked drum on its own,
+// and a single press on a linked drum goes back to editing the group.
+#define LINK_DOUBLE_TAP_TICKS (400*4)	// systick runs at 4 kHz
+#define LINK_BLINK_TICKS (500*4)		// solo blinks once a second
+static uint8_t lxr0_heldDrums;			// drum 1-3 buttons held now (bit 0-2)
+static uint8_t lxr0_lastTap = 0xff;
+static uint32_t lxr0_lastTapTime;
+static uint8_t lxr0_soloVoice;
+
+// returns 1 if the press formed a group, so the normal selection doesn't run
+static uint8_t buttonHandler_lxr0LinkPress(const uint8_t voiceNr)
+{
+	if(voiceNr < 1 || voiceNr > 3 || buttonHandler_stateMemory.selectButtonMode != SELECT_MODE_VOICE)
+		return 0;
+	const uint8_t v = (uint8_t)(voiceNr - 1), bit = (uint8_t)(1 << v);
+	const uint8_t others = (uint8_t)(lxr0_heldDrums & ~bit);
+	lxr0_heldDrums |= bit;
+	if(others)
+	{
+		const uint8_t group = others | bit;
+		activeParameters[PAR_LXR0_LINK_VOICES] = group;
+		if(activeParameters[PAR_LXR0_LINK_MODE] == 0)
+			activeParameters[PAR_LXR0_LINK_MODE] = 1; // unison
+		lxr0Link_setSolo(0);
+		lxr0_lastTap = 0xff;
+		menu_lxr0OpenLink((uint8_t)__builtin_ctz(group));
+		led_setActiveSelectButton(menu_getSubPage()+1);
+		return 1;
+	}
+	if(lxr0Link_voices() & bit)
+	{
+		const uint8_t twice = lxr0_lastTap == v && (systick_ticks - lxr0_lastTapTime) < LINK_DOUBLE_TAP_TICKS;
+		lxr0Link_setSolo(twice);
+		lxr0_soloVoice = v;
+		lxr0_lastTap = twice ? 0xff : v;
+		lxr0_lastTapTime = systick_ticks;
+	}
+	return 0;
+}
+
+static void buttonHandler_lxr0LinkRelease(const uint8_t voiceNr)
+{
+	if(voiceNr >= 1 && voiceNr <= 3)
+		lxr0_heldDrums &= (uint8_t)~(1 << (voiceNr - 1));
+}
+
+// while DRUM is held in voice mode: the selected drum lit, and its group if it's linked; a solo drum blinking
+void buttonHandler_lxr0LinkTick(void)
+{
+	const uint8_t linked = lxr0Link_voices();
+	if(!linked || !buttonHandler_getDrumButton() || buttonHandler_stateMemory.selectButtonMode != SELECT_MODE_VOICE
+			|| menu_activePage > VOICE7_PAGE)
+		return;
+	const uint8_t blinkOn = (systick_ticks / LINK_BLINK_TICKS) & 1;
+	const uint8_t active = menu_getActiveVoice();
+	const uint8_t group = (active < 3 && (linked & (1 << active))) ? linked : 0; // the group shows only while one of its drums is selected
+	for(uint8_t i=0; i<7; i++)
+	{
+		uint8_t on = (i == active) || (i < 3 && (group & (1 << i)));
+		if(i < 3 && lxr0Link_solo() && i == lxr0_soloVoice && (group & (1 << i)))
+			on = blinkOn;
+		led_setValueTemp(on, (uint8_t)(LED_2 + i));
+	}
+}
+#endif
 //--------------------------------------------------------
 // one of the 7 voice buttons pressed
  void buttonHandler_voiceButtonPressed(uint8_t voiceNr)
@@ -1714,6 +1812,10 @@ void buttonHandler_voiceButtonReleased(uint8_t voiceNr)
 			}
 
 			else if (buttonHandler_getDrumButton()){ //when drum button is held, select active voice
+#if LXR0_LINK
+				if(buttonHandler_lxr0LinkPress(voiceNr))
+					return;
+#endif
 
 #if !EURORACK_MODULE
 				//check active bars of new track and make sure the view does not end up in inactive part
@@ -1843,6 +1945,20 @@ void buttonHandler_buttonPressed(uint8_t buttonNr) {
 
 	screensaver_touch();
 
+#if LXR0_RESTART
+	if(buttonNr == BUT_EDIT) lxr0_editHeld = 1;
+	if(buttonNr == BUT_PERF) lxr0_perfHeld = 1;
+	if(menu_lxr0RestartIsOpen())
+	{
+		menu_lxr0RestartClose(); // any button leaves, and does nothing else
+		return;
+	}
+	if(buttonHandler_getShiftButton() && lxr0_editHeld && lxr0_perfHeld)
+	{
+		menu_lxr0RestartOpen();
+		return;
+	}
+#endif
 
 	//------------------------------------------------------
 	switch(buttonNr)
@@ -2365,6 +2481,10 @@ void buttonHandler_buttonPressed(uint8_t buttonNr) {
 //--------------------------------------------------------
 void buttonHandler_buttonReleased(uint8_t buttonNr)
 {
+#if LXR0_RESTART
+	if(buttonNr == BUT_EDIT) lxr0_editHeld = 0;
+	if(buttonNr == BUT_PERF) lxr0_perfHeld = 0;
+#endif
 
 	switch (buttonNr)
 	{
