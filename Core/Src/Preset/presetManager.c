@@ -32,6 +32,7 @@
 #include "Soundengine/Soundengine.h"
 #include "Soundengine/FxBus2.h"	// MODIFIED: FX bus B
 #include "menu/randomizer.h"	// MODIFIED: per-voice morph (voice parameter lists)
+#include "Preset/morphChain.h"	// MODIFIED: morph chain
 
 FRESULT preset_savePatternSD(uint8_t presetNr);
 //FRESULT preset_loadPatternSD(uint8_t presetNr);
@@ -628,6 +629,8 @@ void preset_loadDrumsetRam(uint8_t presetNr, uint8_t isMorph, uint8_t sendImmedi
 
 		preset_saveLastUsedPresetNrToSD(presetNr);
 
+		// MODIFIED: morph chain. The loaded kit becomes the morph source.
+		morphChain_setLoadedKit(presetNr);
 	}
 	soundengine_process();
 
@@ -2060,6 +2063,11 @@ void preset_morph_tick()
 void preset_morph(uint8_t morph, uint8_t forceResetIndex)
 {
 #if 1
+	// MODIFIED: morph chain. Reaching an end of the morph may swap the silent kit.
+	if(morphChain_sync(morph))
+	{
+		forceResetIndex = 1;
+	}
 
 	if(forceResetIndex)
 	{
@@ -2110,14 +2118,17 @@ void preset_morph(uint8_t morph, uint8_t forceResetIndex)
 //----------------------------------------------------
 uint8_t preset_getMorphValue(uint16_t index, uint8_t morph)
 {
-	// MODIFIED: per-voice morph. Parameters outside the selected morph voice (and routing)
-	// keep the current kit's value.
-	const uint8_t target = activeParameters[PAR_MORPH_TARGET];
-	if(!voiceParams_isMorphed(index, mainParameters[target][PAR_HH7_VALID] != 0))
+	// MODIFIED: per-voice morph and morph chain. The blend runs from the effective source
+	// kit (the edit buffer when it is the loaded kit) to the effective target kit.
+	// Parameters outside the selected morph voice, and routing, keep the loaded kit's value.
+	const uint8_t target = morphChain_targetKit();
+	const uint8_t* src = morphChain_sourceIsEditBuffer() ? activeParameters : mainParameters[morphChain_sourceKit()];
+	const uint8_t valid7 = (src[PAR_HH7_VALID] != 0) && (mainParameters[target][PAR_HH7_VALID] != 0);
+	if(!voiceParams_isMorphed(index, valid7))
 	{
-		morph = 0;
+		return activeParameters[index];
 	}
-	return interpolate(activeParameters[index],mainParameters[target][index],morph);
+	return interpolate(src[index],mainParameters[target][index],morph);
 };
 //----------------------------------------------------
 #if !EURORACK_MODULE

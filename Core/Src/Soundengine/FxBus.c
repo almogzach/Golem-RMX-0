@@ -193,9 +193,23 @@ IN_ITCM_RAM void FxBus_setParameter(uint8_t idx, float value)
 {
 	fxBus.parameter[idx] = value;
 
+	// MODIFIED: for the delay, only apply the parameter that changed.
+	// Re-applying time and range restarts the delay's read-position crossfade,
+	// so modulating e.g. feedback (P4) from a CV made the delay time glitch.
+	if(fxBus.fxType == FX_DELAY)
+	{
+		switch(idx)
+		{
+		case 0:	Delay_setDelayTime(&fxBus.delay, value);	break;
+		case 1:	Delay_setRange(&fxBus.delay, value);		break;
+		case 2:	Delay_setFilter(&fxBus.delay, value);		break;
+		case 3:	Delay_setFeedback(&fxBus.delay, value);		break;
+		default: break;
+		}
+		return;
+	}
+
 	FxBus_updateParameter();
-
-
 }
 
 

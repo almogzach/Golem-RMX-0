@@ -22,6 +22,7 @@
 #include "Soundengine/DSPAudio/Snare.h"
 #include "Soundengine/DSPAudio/HiHat.h"
 #include <Soundengine/TriggerProcessor.h>
+#include "Preset/morphChain.h"	// MODIFIED: morph chain CV kit selection
 
 INDTCMZ ModulationNode cvModulators[NUM_MOD_SLOTS];
 
@@ -100,6 +101,9 @@ void CV_process()
 		//float cv = adc_getCvValue(activeParameters[PAR_CV_SRC_1 + i]);
 		modNode_updateValue(&cvModulators[i],cv);
 	}
+
+	// MODIFIED: morph chain. CV kit selection, auto-advance and pending kit changes.
+	morphChain_cvTick();
 }
 
 float CV_getBpm()

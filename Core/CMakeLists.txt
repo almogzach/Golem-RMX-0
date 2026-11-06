@@ -58,6 +58,7 @@ add_library(lxr_ui OBJECT
 add_library(lxr_preset OBJECT
     Src/Preset/initKit.c
     Src/Preset/presetManager.c
+    Src/Preset/morphChain.c
 )
 
 # DSP building blocks, drum voices and master effects.

@@ -86,6 +86,12 @@ void randomizer_init(void)
 	activeParameters[PAR_RAND_GO] = 0;
 	activeParameters[PAR_RAND_UNDO] = 0;
 	activeParameters[PAR_MORPH_VOICE] = 0;	// morph all voices, as before
+	// morph chain defaults: manual, whole kit range, no CV
+	activeParameters[PAR_MORPH_AUTO] = 0;
+	activeParameters[PAR_MORPH_LO] = 0;
+	activeParameters[PAR_MORPH_HI] = 127;
+	activeParameters[PAR_MORPH_SRC_CV] = 0;
+	activeParameters[PAR_MORPH_TGT_CV] = 0;
 	randomizer_undoValid = 0;
 	voiceParams_build();
 }

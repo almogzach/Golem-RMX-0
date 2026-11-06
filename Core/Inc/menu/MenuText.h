@@ -49,6 +49,7 @@
 #define MENU_RND_TARGET		30	// MODIFIED: randomizer target
 #define MENU_RND_ACT		31	// MODIFIED: randomizer go / undo
 #define MENU_MORPH_VOICE	32	// MODIFIED: morph voice select
+#define MENU_MORPH_CV		33	// MODIFIED: CV jack for morph kit selection
 
 //-----------------------------------------------------------------
 // Shared texts. Reduce mem usage by pooling common text
@@ -205,6 +206,17 @@ const char morphVoiceNames[][4] =
 	{"v5"},
 	{"v6"},
 	{"v7"},
+};
+// MODIFIED: CV jack that selects a morph kit
+const char morphCvNames[][4] =
+{
+	{6},		//number of entries
+	{"off"},
+	{"cv1"},
+	{"cv2"},
+	{"cv3"},
+	{"cv4"},
+	{"cv5"},
 };
 // MODIFIED: randomizer action. Turning the knob to "go!" runs it, then it returns to "---"
 const char rndActNames[][4] =
@@ -577,6 +589,12 @@ const char shortNames[][4]  =
 	{"rnd"},	// MODIFIED: randomize
 	{"und"},	// MODIFIED: undo randomize
 	{"mvc"},	// MODIFIED: morph voice
+	{"msr"},	// MODIFIED: morph chain
+	{"aut"},
+	{"lo"},
+	{"hi"},
+	{"scv"},
+	{"tcv"},
 
 };
 //-----------------------------------------------------------------
@@ -719,6 +737,12 @@ const char longNames[][16] =
 	{"Randomze"},
 	{"Undo"},
 	{"MrphVoce"},	// MODIFIED: morph voice
+	{"MrphSrc"},	// MODIFIED: morph chain
+	{"AutoAdv"},
+	{"Range lo"},
+	{"Range hi"},
+	{"Src CV"},
+	{"Tgt CV"},
 };
 
 

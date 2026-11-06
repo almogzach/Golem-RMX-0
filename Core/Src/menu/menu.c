@@ -9,6 +9,7 @@
 
 #include "menu/menu.h"
 #include "menu/randomizer.h"	// MODIFIED: parameter randomizer
+#include "Preset/morphChain.h"	// MODIFIED: morph chain
 #include "lcd.h"
 #include <string.h>
 #include <stdlib.h>
@@ -274,6 +275,12 @@ const Name valueNames[NUM_NAMES] =
 		{SHORT_RND_GO, CAT_RND, LONG_RND_GO},		/*TEXT_RND_GO*/
 		{SHORT_RND_UNDO, CAT_RND, LONG_RND_UNDO},	/*TEXT_RND_UNDO*/
 		{SHORT_MORPH_VOICE, CAT_SOUND, LONG_MORPH_VOICE},	/*TEXT_MORPH_VOICE*/	// MODIFIED
+		{SHORT_MORPH_SOURCE, CAT_SOUND, LONG_MORPH_SOURCE},	/*TEXT_MORPH_SOURCE*/	// MODIFIED: morph chain
+		{SHORT_MORPH_AUTO, CAT_SOUND, LONG_MORPH_AUTO},		/*TEXT_MORPH_AUTO*/
+		{SHORT_MORPH_LO, CAT_SOUND, LONG_MORPH_LO},			/*TEXT_MORPH_LO*/
+		{SHORT_MORPH_HI, CAT_SOUND, LONG_MORPH_HI},			/*TEXT_MORPH_HI*/
+		{SHORT_MORPH_SRC_CV, CAT_SOUND, LONG_MORPH_SRC_CV},	/*TEXT_MORPH_SRC_CV*/
+		{SHORT_MORPH_TGT_CV, CAT_SOUND, LONG_MORPH_TGT_CV},	/*TEXT_MORPH_TGT_CV*/
 
 
 
@@ -664,6 +671,12 @@ const enum Datatypes PROGMEM parameter_dtypes[NUM_PARAMS] = {
 		/*PAR_RAND_GO*/			DTYPE_MENU | (MENU_RND_ACT<<8),
 		/*PAR_RAND_UNDO*/		DTYPE_MENU | (MENU_RND_ACT<<8),
 		/*PAR_MORPH_VOICE*/		DTYPE_MENU | (MENU_MORPH_VOICE<<8),	// MODIFIED
+		/*PAR_MORPH_SOURCE*/	DTYPE_0B127,						// MODIFIED: morph chain
+		/*PAR_MORPH_AUTO*/		DTYPE_ON_OFF,
+		/*PAR_MORPH_LO*/		DTYPE_0B127,
+		/*PAR_MORPH_HI*/		DTYPE_0B127,
+		/*PAR_MORPH_SRC_CV*/	DTYPE_MENU | (MENU_MORPH_CV<<8),
+		/*PAR_MORPH_TGT_CV*/	DTYPE_MENU | (MENU_MORPH_CV<<8),
 	    /*PAR_BPM*/ 			DTYPE_0B255,							//251
 	    /*PAR_MIDI_CHAN_1*/ 	DTYPE_1B16,
 	    /*PAR_MIDI_CHAN_2*/ 	DTYPE_1B16,
@@ -1848,7 +1861,7 @@ void menu_repaintGeneric()
 						numtostrpu(&editDisplayBuffer[1][13],(uint8_t)(curParmVal),' ');
 					}
 				}
-				if(parNr == PAR_MORPH_TARGET)
+				if((parNr == PAR_MORPH_TARGET) || (parNr == PAR_MORPH_SOURCE) || (parNr == PAR_MORPH_LO) || (parNr == PAR_MORPH_HI))	// MODIFIED: + morph chain
 				{
 					memcpy(&editDisplayBuffer[1][0], savefileNames[curParmVal][KIT_NAMES], 8);
 					numtostrpu(&editDisplayBuffer[1][13],(uint8_t)(curParmVal),' ');
@@ -2858,6 +2871,9 @@ static uint8_t getMaxEntriesForMenu(uint8_t menuId)
 	case MENU_MORPH_VOICE:	// MODIFIED: morph voice select
 		return morphVoiceNames[0][0];
 
+	case MENU_MORPH_CV:		// MODIFIED: morph chain
+		return morphCvNames[0][0];
+
 	case MENU_DIST:
 		return distNames[0][0];
 
@@ -2984,6 +3000,10 @@ static void getMenuItemNameForValue(const uint8_t menuId, const uint8_t curParmV
 
 	case MENU_MORPH_VOICE:	// MODIFIED: morph voice select
 		p=morphVoiceNames[curParmVal+1];
+		break;
+
+	case MENU_MORPH_CV:		// MODIFIED: morph chain
+		p=morphCvNames[curParmVal+1];
 		break;
 
 	case MENU_DIST:
@@ -3916,8 +3936,17 @@ void menu_parseGlobalParam(uint16_t paramNr, uint8_t value)
 	//	frontPanel_sendData(SEQ_CC,SEQ_MIDI_MODE,parameter_values[PAR_MIDI_MODE]);
 	//	break;
 
+	// MODIFIED: morph chain. Requested source/target kits only take effect on the silent
+	// side of the morph (glitch guard); preset_morph() applies them via morphChain_sync().
 	case PAR_MORPH_TARGET:
-		preset_morph(preset_morphValue, 1);
+	case PAR_MORPH_SOURCE:
+	case PAR_MORPH_AUTO:
+	case PAR_MORPH_LO:
+	case PAR_MORPH_HI:
+		if(morphChain_sync(preset_morphValue))
+		{
+			preset_morph(preset_morphValue, 1);
+		}
 		break;
 
 	case PAR_MIDI_CHAN_7:

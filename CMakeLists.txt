@@ -20,7 +20,7 @@ if(NOT CMAKE_TOOLCHAIN_FILE)
 endif()
 
 project(LXR_V2_STM32F765_Eurorack
-    VERSION 1.51.3 # Golem: MODIFIED (FX bus B, separate hats, randomizer, per-voice morph) - not official Erica Synths firmware
+    VERSION 1.51.5 # Golem: MODIFIED (FX bus B, separate hats, randomizer, per-voice morph) - not official Erica Synths firmware
     DESCRIPTION "Golem (LXR firmware mod): unofficial custom firmware for the Erica Synths LXR V2 Eurorack drum module"
     LANGUAGES C ASM
 )

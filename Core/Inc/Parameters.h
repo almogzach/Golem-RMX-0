@@ -493,6 +493,14 @@ enum ParamEnums
 	// MODIFIED: morph only one voice (0 = all voices, 1..7 = voice 1..7). Menu only, not saved.
 	PAR_MORPH_VOICE,
 
+	// MODIFIED: morph chain (menu only, not saved). See Preset/morphChain.h
+	PAR_MORPH_SOURCE,	// source kit 0..127 (defaults to the loaded kit)
+	PAR_MORPH_AUTO,		// auto-advance on/off
+	PAR_MORPH_LO,		// kit range used by auto-advance and CV selection
+	PAR_MORPH_HI,
+	PAR_MORPH_SRC_CV,	// 0 = off, 1..5 = CV jack that selects the source kit
+	PAR_MORPH_TGT_CV,	// 0 = off, 1..5 = CV jack that selects the target kit
+
 	
 	//#########################################
 	//######## Global Parameters ##############
